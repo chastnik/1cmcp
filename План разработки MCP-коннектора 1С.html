@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>*{box-sizing:border-box}html{color-scheme:light dark}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>MCP-коннектор для 1С</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@500;700;800&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+  :root {
+    --ground: #F1F4F6;
+    --surface: #FFFFFF;
+    --surface-2: #E6ECEF;
+    --ink: #112434;
+    --ink-2: #45606F;
+    --ink-3: #74909F;
+    --line: #D2DCE1;
+    --line-strong: #B6C5CD;
+    --accent: #D2026D;
+    --accent-ink: #D2026D;
+    --accent-soft: #FBE7F1;
+    --teal: #0B8577;
+    --teal-soft: #DDF4F0;
+    --warn: #A96A00;
+    --warn-soft: #F8EDD9;
+    --crit: #B32F26;
+    --crit-soft: #F9E4E2;
+    --shadow: 0 1px 2px rgba(17,36,52,.06), 0 8px 24px -16px rgba(17,36,52,.28);
+
+    --f-display: "Onest", "Segoe UI", system-ui, sans-serif;
+    --f-body: "Golos Text", "Segoe UI", system-ui, sans-serif;
+    --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+    --col: 68ch;
+    --pad: clamp(20px, 5vw, 56px);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0A161E;
+      --surface: #112434;
+      --surface-2: #17303F;
+      --ink: #E9F1F4;
+      --ink-2: #A6BCC8;
+      --ink-3: #75919F;
+      --line: #223F4E;
+      --line-strong: #315163;
+      --accent: #FF4A96;
+      --accent-ink: #FF7AB2;
+      --accent-soft: #33122A;
+      --teal: #35D4C0;
+      --teal-soft: #0E3A38;
+      --warn: #E9A94A;
+      --warn-soft: #34290F;
+      --crit: #FF7566;
+      --crit-soft: #38191A;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.9);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0A161E;
+    --surface: #112434;
+    --surface-2: #17303F;
+    --ink: #E9F1F4;
+    --ink-2: #A6BCC8;
+    --ink-3: #75919F;
+    --line: #223F4E;
+    --line-strong: #315163;
+    --accent: #FF4A96;
+    --accent-ink: #FF7AB2;
+    --accent-soft: #33122A;
+    --teal: #35D4C0;
+    --teal-soft: #0E3A38;
+    --warn: #E9A94A;
+    --warn-soft: #34290F;
+    --crit: #FF7566;
+    --crit-soft: #38191A;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.9);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 16px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 var(--pad) 96px;
+  }
+
+  /* ---------- masthead ---------- */
+  .masthead {
+    padding: clamp(48px, 9vw, 96px) 0 40px;
+    border-bottom: 1px solid var(--line);
+  }
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    margin: 0 0 20px;
+  }
+  h1 {
+    font-family: var(--f-display);
+    font-weight: 800;
+    font-size: clamp(34px, 6.2vw, 62px);
+    line-height: 1.04;
+    letter-spacing: -.025em;
+    margin: 0 0 20px;
+    text-wrap: balance;
+    max-width: 16ch;
+  }
+  h1 .thin { color: var(--ink-3); font-weight: 500; }
+  .standfirst {
+    font-size: clamp(17px, 2.1vw, 20px);
+    color: var(--ink-2);
+    max-width: var(--col);
+    margin: 0;
+  }
+  .factstrip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    margin-top: 40px;
+  }
+  .fact { background: var(--surface); padding: 16px 18px; }
+  .fact dt {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: .11em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 6px;
+  }
+  .fact dd {
+    margin: 0;
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 16px;
+    line-height: 1.3;
+  }
+
+  /* ---------- sections ---------- */
+  section { padding-top: clamp(56px, 8vw, 88px); scroll-margin-top: 24px; }
+  .sechead { display: flex; align-items: baseline; gap: 14px; margin-bottom: 8px; }
+  .secnum {
+    font-family: var(--f-mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent-ink);
+    letter-spacing: .08em;
+    padding-top: 4px;
+  }
+  h2 {
+    font-family: var(--f-display);
+    font-weight: 800;
+    font-size: clamp(25px, 3.6vw, 34px);
+    letter-spacing: -.02em;
+    line-height: 1.14;
+    margin: 0;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: -.008em;
+    margin: 0 0 8px;
+  }
+  .lede { color: var(--ink-2); max-width: var(--col); margin: 0 0 28px; }
+  p { max-width: var(--col); }
+  a { color: var(--accent-ink); }
+  code, .mono { font-family: var(--f-mono); font-size: .88em; }
+  code {
+    background: var(--surface-2);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--ink);
+  }
+
+  /* ---------- callout ---------- */
+  .callout {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    padding: 22px 24px;
+    display: grid;
+    gap: 10px;
+  }
+  .callout p { margin: 0; max-width: 76ch; }
+  .callout .k {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+  }
+
+  /* ---------- layer diagram ---------- */
+  .stack { display: grid; gap: 0; margin: 8px 0 32px; }
+  .layer {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: 20px clamp(16px, 3vw, 26px);
+    display: grid;
+    grid-template-columns: 92px 1fr;
+    gap: clamp(14px, 3vw, 28px);
+  }
+  .layer + .connector { justify-self: center; }
+  .connector {
+    display: grid;
+    justify-items: center;
+    gap: 4px;
+    padding: 10px 0;
+  }
+  .connector .rail { width: 1px; height: 14px; background: var(--line-strong); }
+  .connector .proto {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: .06em;
+    color: var(--ink-3);
+    background: var(--ground);
+    padding: 2px 8px;
+    border: 1px solid var(--line);
+  }
+  .layer-tag {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    padding-top: 4px;
+  }
+  .layer.a { border-left: 3px solid var(--accent); }
+  .layer.b { border-left: 3px solid var(--teal); }
+  .layer.c { border-left: 3px solid var(--line-strong); }
+  .layer.a .layer-tag { color: var(--accent-ink); }
+  .layer.b .layer-tag { color: var(--teal); }
+  .layer h3 { margin-bottom: 4px; }
+  .layer .sub { color: var(--ink-2); font-size: 14.5px; margin: 0 0 14px; max-width: 70ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    padding: 3px 9px;
+    border: 1px solid var(--line);
+    background: var(--ground);
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+
+  /* ---------- tables ---------- */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14.5px; }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--line-strong);
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td .mono { color: var(--ink); }
+  .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* ---------- differentiators ---------- */
+  .diffs { display: grid; grid-template-columns: repeat(auto-fit, minmax(258px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+  .diff { background: var(--surface); padding: 22px 22px 24px; }
+  .diff .n {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    color: var(--teal);
+    letter-spacing: .1em;
+    display: block;
+    margin-bottom: 10px;
+  }
+  .diff p { font-size: 14.5px; color: var(--ink-2); margin: 0; }
+
+  /* ---------- roadmap ---------- */
+  .phases { display: grid; gap: 0; margin-top: 12px; }
+  .phase {
+    display: grid;
+    grid-template-columns: 118px 1fr;
+    gap: clamp(14px, 3vw, 30px);
+    padding: 26px 0;
+    border-top: 1px solid var(--line);
+  }
+  .phase:last-child { border-bottom: 1px solid var(--line); }
+  .phase-id { position: relative; }
+  .phase-id .p {
+    font-family: var(--f-display);
+    font-weight: 800;
+    font-size: 30px;
+    letter-spacing: -.03em;
+    line-height: 1;
+    color: var(--accent-ink);
+  }
+  .phase-id .wk {
+    display: block;
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    color: var(--ink-3);
+    margin-top: 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .phase-body h3 { font-size: 20px; }
+  .phase-body > p { margin: 0 0 14px; color: var(--ink-2); }
+  .deliverables { margin: 0 0 14px; padding-left: 18px; max-width: 74ch; }
+  .deliverables li { margin-bottom: 5px; }
+  .dod {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    background: var(--teal-soft);
+    border: 1px solid var(--line);
+    padding: 11px 14px;
+    max-width: 74ch;
+    font-size: 14px;
+  }
+  .dod b {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--teal);
+    white-space: nowrap;
+    padding-top: 3px;
+  }
+
+  /* ---------- risk severity ---------- */
+  .sev {
+    display: inline-block;
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border: 1px solid currentColor;
+    white-space: nowrap;
+  }
+  .sev.high { color: var(--crit); background: var(--crit-soft); }
+  .sev.mid { color: var(--warn); background: var(--warn-soft); }
+  .sev.low { color: var(--teal); background: var(--teal-soft); }
+
+  /* ---------- week one ---------- */
+  .week { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+  .day { background: var(--surface); padding: 18px 22px; display: grid; grid-template-columns: 76px 1fr; gap: 20px; align-items: baseline; }
+  .day .d {
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    letter-spacing: .08em;
+    color: var(--ink-3);
+    text-transform: uppercase;
+  }
+  .day p { margin: 0; font-size: 15px; }
+  .day b { font-family: var(--f-display); font-weight: 700; }
+
+  .foot {
+    margin-top: 72px;
+    padding-top: 22px;
+    border-top: 1px solid var(--line);
+    color: var(--ink-3);
+    font-size: 13.5px;
+    max-width: var(--col);
+  }
+
+  @media (max-width: 620px) {
+    .layer { grid-template-columns: 1fr; gap: 12px; }
+    .phase { grid-template-columns: 1fr; gap: 10px; }
+    .phase-id { display: flex; align-items: baseline; gap: 14px; }
+    .phase-id .wk { margin-top: 0; }
+    .day { grid-template-columns: 1fr; gap: 6px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">План разработки · Первый Бит · сентябрь 2026</p>
+    <h1>Универсальный MCP-коннектор <span class="thin">к базам 1С</span></h1>
+    <p class="standfirst">Один адаптер, который открывает любую конфигурацию 1С — типовую или самописную — для ИИ-агентов и внешних приложений по MCP и REST: чтение, запись, отчёты и вызов бизнес-логики под контролем прав и аудита.</p>
+
+    <dl class="factstrip">
+      <div class="fact"><dt>Статус</dt><dd>Тиражируемый продукт</dd></div>
+      <div class="fact"><dt>Архитектура</dt><dd>Расширение .cfe + внешний шлюз</dd></div>
+      <div class="fact"><dt>До RC</dt><dd class="num">~18–21 неделя</dd></div>
+      <div class="fact"><dt>Команда</dt><dd class="num">4,5 FTE</dd></div>
+      <div class="fact"><dt>Правовой режим</dt><dd>Clean room</dd></div>
+    </dl>
+  </header>
+
+  <section id="clean-room">
+    <div class="sechead"><span class="secnum">01</span><h2>Правовая рамка: разработка с нуля</h2></div>
+    <p class="lede">Это первое инженерное решение, а не юридическая формальность. Чужое расширение под задачу конкретного вендора несёт чужие компромиссы; универсальному коннектору нужна другая модель безопасности, другая интроспекция и другой контракт API. Переписывание чужого кода не даст ни одного из этих свойств — только риск.</p>
+
+    <div class="callout">
+      <span class="k">Режим работы команды</span>
+      <p>Источники — только официальная документация 1С и ИТС по HTTP-сервисам, публикации на веб-сервере и механизмам расширений конфигурации. Декомпиляция и анализ сторонних <code>.cfe</code> исключены регламентом; разработчики не получают к ним доступ.</p>
+      <p>Собственные имена и префиксы объектов метаданных, собственные UUID, собственная структура API. Никакого совпадения имён общих модулей, HTTP-сервисов, ролей и справочников с чужими продуктами.</p>
+      <p>Происхождение кода фиксируется: git с подписанными коммитами, ADR-записи на каждое архитектурное решение, чек-лист приёмки. При спорной ситуации это доказательная база.</p>
+    </div>
+
+    <p style="margin-top:24px">Публичные факты об интерфейсе — что подключение идёт через публикацию на веб-сервере, что нужны роль и права, что вызовы приходят в HTTP-сервис — это описание платформенных механизмов 1С, общих для всех. Их использование ни у кого не спрашивают.</p>
+  </section>
+
+  <section id="architecture">
+    <div class="sechead"><span class="secnum">02</span><h2>Архитектура: три слоя</h2></div>
+    <p class="lede">Тонкий слой в 1С, вся сложность протоколов — снаружи. MCP развивается быстрее, чем выходят релизы 1С; держать JSON-RPC, SSE и OAuth внутри конфигурации значит обновлять расширение у клиентов на каждое движение спецификации.</p>
+
+    <div class="stack">
+      <div class="layer a">
+        <div class="layer-tag">Слой A<br>в 1С</div>
+        <div>
+          <h3>Адаптер конфигурации <span class="mono" style="color:var(--ink-3);font-weight:400">(.cfe)</span></h3>
+          <p class="sub">Один HTTP-сервис с версионированной маршрутизацией, ядро сериализации типов 1С в JSON, интроспекция метаданных, whitelist доступа и журнал. Заимствований типовых объектов — минимум, чтобы не мешать обновлениям конфигурации.</p>
+          <div class="chips">
+            <span class="chip">/v1/meta</span>
+            <span class="chip">/v1/data</span>
+            <span class="chip">/v1/query</span>
+            <span class="chip">/v1/report</span>
+            <span class="chip">/v1/action</span>
+            <span class="chip">/v1/job</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="connector"><span class="rail"></span><span class="proto">HTTPS · JSON · mTLS или VPN</span><span class="rail"></span></div>
+
+      <div class="layer b">
+        <div class="layer-tag">Слой B<br>шлюз</div>
+        <div>
+          <h3>Протокольный шлюз <span class="mono" style="color:var(--ink-3);font-weight:400">(Python / FastAPI)</span></h3>
+          <p class="sub">Собирает набор MCP-инструментов из метаданных конкретной базы, отдаёт OpenAPI 3.1 для агентов без MCP, держит кэш метаданных, аутентификацию, лимиты и трассировку. Один шлюз обслуживает несколько баз с маршрутизацией по тенанту.</p>
+          <div class="chips">
+            <span class="chip">MCP stdio + streamable HTTP</span>
+            <span class="chip">REST / OpenAPI 3.1</span>
+            <span class="chip">OAuth2 client credentials</span>
+            <span class="chip">кэш метаданных</span>
+            <span class="chip">OpenTelemetry</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="connector"><span class="rail"></span><span class="proto">MCP · REST</span><span class="rail"></span></div>
+
+      <div class="layer c">
+        <div class="layer-tag">Слой C<br>потребители</div>
+        <div>
+          <h3>Агенты и приложения</h3>
+          <p class="sub">Всё, что умеет MCP или HTTP-API. Специальных доработок на стороне потребителя не требуется — это и есть смысл «универсального» в названии.</p>
+          <div class="chips">
+            <span class="chip">Claude / Claude Code</span>
+            <span class="chip">PIX Operator</span>
+            <span class="chip">n8n · Dify</span>
+            <span class="chip">GigaChat · YandexGPT</span>
+            <span class="chip">внутренние сервисы</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:36px">Состав расширения</h3>
+    <p class="lede" style="margin-bottom:18px">Объекты метаданных подобраны так, чтобы настройка коннектора была работой консультанта, а не программиста: доступ, запросы и разрешённые действия описываются данными, а не кодом.</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Объект</th><th>Тип</th><th>Назначение</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="mono">Маршрутизатор, Сериализация, Интроспекция</td><td>Общие модули</td><td>Разбор запроса и версия API, конвертация типов 1С ↔ JSON (ссылки, даты, табличные части, хранилища), обход дерева метаданных в JSON Schema</td></tr>
+          <tr><td class="mono">Безопасность, Данные, Запросы, Отчёты, Действия</td><td>Общие модули</td><td>Проверка скоупов, CRUD и проведение, валидация запросов, исполнение СКД, вызов разрешённых процедур</td></tr>
+          <tr><td class="mono">КлиентыИнтеграции</td><td>Справочник</td><td>Приложения и агенты: хеш токена, скоупы, сопоставленный пользователь 1С для RLS и аудита</td></tr>
+          <tr><td class="mono">ПравилаДоступа</td><td>Регистр сведений</td><td>Матрица «объект × операция × поля»: что клиенту вообще видно</td></tr>
+          <tr><td class="mono">ИменованныеЗапросы</td><td>Справочник</td><td>Готовые запросы с параметрами и схемой результата — безопасная альтернатива произвольному тексту запроса</td></tr>
+          <tr><td class="mono">ДействияИнтеграции</td><td>Справочник</td><td>Whitelist экспортных методов конфигурации: сигнатура и описание на естественном языке для агента</td></tr>
+          <tr><td class="mono">СемантическийСловарь</td><td>Регистр сведений</td><td>Человеческие названия, синонимы и примеры для объектов и реквизитов — то, что делает ответы агента точными</td></tr>
+          <tr><td class="mono">ЖурналВызовов</td><td>Регистр сведений</td><td>Кто, что, когда, сколько длилось, что создал — с ссылками на объекты для разбора и отката</td></tr>
+          <tr><td class="mono">АдминистрированиеКоннектора</td><td>Обработка</td><td>Настройка, генерация токенов, мастер публикации, самодиагностика</td></tr>
+          <tr><td class="mono">ДоступКоннектора</td><td>Роль</td><td>Минимально необходимые права, отдельные от прав живых пользователей</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="differentiators">
+    <div class="sechead"><span class="secnum">03</span><h2>Чем этот продукт отличается</h2></div>
+    <p class="lede">Аналоги на рынке уже есть, и «мы тоже умеем читать справочники» продажу не закрывает. Отличие должно быть заложено в архитектуру на старте — доклеить его в четвёртой фазе не получится.</p>
+
+    <div class="diffs">
+      <div class="diff">
+        <span class="n">01</span>
+        <h3>Семантический слой</h3>
+        <p>Агент ошибается не потому, что не может прочитать таблицу, а потому что не понимает, что <code>КонтрагентВид</code> — это тип контрагента. Описания, синонимы и примеры хранятся в базе и правятся консультантом на внедрении.</p>
+      </div>
+      <div class="diff">
+        <span class="n">02</span>
+        <h3>Двухуровневые инструменты</h3>
+        <p>В ERP десятки тысяч объектов — отдать агенту тысячу MCP-инструментов невозможно. Сначала discovery (поиск по метаданным, описание объекта), потом исполнение. Контекст модели остаётся рабочим.</p>
+      </div>
+      <div class="diff">
+        <span class="n">03</span>
+        <h3>Dry-run перед записью</h3>
+        <p>Агент получает предпросмотр: что будет создано, какие проверки заполнения пройдены, что произойдёт при проведении. Запись — вторым вызовом по токену подтверждения. Без этого ни один финдиректор запись не согласует.</p>
+      </div>
+      <div class="diff">
+        <span class="n">04</span>
+        <h3>Идемпотентность</h3>
+        <p>Ключ идемпотентности на создание. Агент, который ретраит вызов после таймаута, не порождает второй документ реализации — типовая беда наивных интеграций.</p>
+      </div>
+      <div class="diff">
+        <span class="n">05</span>
+        <h3>Аудит с откатом</h3>
+        <p>Журнал в бизнес-терминах, со ссылками на созданные объекты и групповой отменой проведения по сессии агента. Это то, что показывают службе внутреннего контроля.</p>
+      </div>
+      <div class="diff">
+        <span class="n">06</span>
+        <h3>Данные не отдают команд</h3>
+        <p>Содержимое полей 1С возвращается помеченным как данные. Шлюз не исполняет инструкции, пришедшие из комментария к документу, — защита от инъекций через справочные данные.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="roadmap">
+    <div class="sechead"><span class="secnum">04</span><h2>Дорожная карта</h2></div>
+    <p class="lede">Шесть фаз со сквозным сценарием: каждая заканчивается работающим end-to-end путём от агента до базы, а не набором готовых модулей. Недели — календарные, при заявленном составе команды.</p>
+
+    <div class="phases">
+
+      <div class="phase">
+        <div class="phase-id"><span class="p">Ф0</span><span class="wk">нед. 1–2</span></div>
+        <div class="phase-body">
+          <h3>Фундамент и контракт API</h3>
+          <p>Единственная фаза без кода продукта. Цена ошибки в контракте API растёт кратно после первого клиента, поэтому спецификация пишется до реализации.</p>
+          <ul class="deliverables">
+            <li>ADR по архитектуре, регламент clean room, шаблон репозитория</li>
+            <li>Сборка <code>.cfe</code> из исходников в CI (1C:EDT либо OneScript + gitsync), автотесты на Vanessa/ADD</li>
+            <li>Стенды: УТ 11, ERP 2, БП 3.0 и одна самописная база клиента</li>
+            <li>Черновик OpenAPI 3.1 на весь v1 — включая операции будущих фаз</li>
+          </ul>
+          <div class="dod"><b>Готово когда</b><span>Пустое расширение собирается в CI, ставится на все четыре стенда и отвечает на <code>/v1/health</code>.</span></div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-id"><span class="p">Ф1</span><span class="wk">нед. 3–7</span></div>
+        <div class="phase-body">
+          <h3>Чтение и интроспекция</h3>
+          <p>Ядро продукта. Здесь же решается вопрос, который позже переделать дороже всего: как метаданные большой конфигурации помещаются в контекст модели.</p>
+          <ul class="deliverables">
+            <li>HTTP-сервис, аутентификация по токену, скоупы, журнал вызовов</li>
+            <li>Интроспекция метаданных с ленивой загрузкой и кэшем; семантический словарь</li>
+            <li>Чтение справочников, документов, регистров: фильтры, пагинация, выборка по ссылке</li>
+            <li>MCP-шлюз с discovery-инструментами; подключение из Claude Desktop</li>
+          </ul>
+          <div class="dod"><b>Готово когда</b><span>Агент отвечает на «сколько было отгрузок за август по контрагенту N и на какую сумму» на стенде ERP — без предварительной настройки под этот вопрос.</span></div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-id"><span class="p">Ф2</span><span class="wk">нед. 8–10</span></div>
+        <div class="phase-body">
+          <h3>Отчёты и запросы</h3>
+          <p>Отчёты СКД — это готовая, выверенная бухгалтерией бизнес-логика. Дать агенту запускать их дешевле и надёжнее, чем учить его собирать те же цифры запросом.</p>
+          <ul class="deliverables">
+            <li>Запуск отчётов СКД с параметрами, вывод в JSON, Markdown и CSV</li>
+            <li>Именованные запросы с типизированными параметрами и схемой результата</li>
+            <li>Валидатор произвольного запроса: разбор текста, только выборка, лимиты строк и времени, запрет опасных конструкций</li>
+            <li>Фоновые задания и <code>/v1/job</code> для длительных операций</li>
+          </ul>
+          <div class="dod"><b>Готово когда</b><span>Агент запускает типовой отчёт с параметрами и получает результат, а тяжёлый запрос уходит в фон и корректно отдаёт статус и результат по job-id.</span></div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-id"><span class="p">Ф3</span><span class="wk">нед. 11–15</span></div>
+        <div class="phase-body">
+          <h3>Запись и бизнес-логика</h3>
+          <p>Самая рискованная фаза: здесь агент начинает менять данные клиента. Механики доверия — dry-run, идемпотентность, откат — делаются вместе с записью, а не после.</p>
+          <ul class="deliverables">
+            <li>Создание и изменение объектов, проведение, транзакционность</li>
+            <li>Dry-run с предпросмотром и токеном подтверждения; ключи идемпотентности</li>
+            <li>Ошибки проведения и проверки заполнения — в формулировках, из которых агент понимает, что исправить</li>
+            <li>Whitelist экспортных процедур конфигурации как инструментов</li>
+            <li>Групповой откат по сессии агента</li>
+          </ul>
+          <div class="dod"><b>Готово когда</b><span>Агент создаёт и проводит документ на стенде УТ, повторный вызов не порождает дубль, а вся сессия откатывается одной операцией.</span></div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-id"><span class="p">Ф4</span><span class="wk">нед. 16–21</span></div>
+        <div class="phase-body">
+          <h3>Продуктизация</h3>
+          <p>Переход от «работает у нас» к «ставится у клиента без нас». Для тиражного продукта это не хвост проекта, а половина его стоимости.</p>
+          <ul class="deliverables">
+            <li>Админ-панель в 1С, мастер публикации, самодиагностика подключения</li>
+            <li>Дистрибутив: <code>.cfe</code> + Docker Compose и Helm-чарт для шлюза</li>
+            <li>Лицензирование и защита, версионирование, политика совместимости с 8.3.20+ и обоими режимами работы</li>
+            <li>Нагрузочное тестирование, security review, внешний пентест публикации</li>
+            <li>Документация внедренца и администратора, обучение партнёрской сети</li>
+          </ul>
+          <div class="dod"><b>Готово когда</b><span>Инженер, не участвовавший в разработке, разворачивает коннектор на незнакомой базе по документации за рабочий день.</span></div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-id"><span class="p">Ф5</span><span class="wk">после RC</span></div>
+        <div class="phase-body">
+          <h3>Пилоты и развитие</h3>
+          <p>Два-три пилота на разных типах конфигураций, дальше — библиотека готовых сценариев, которая и продаёт продукт: не «API к 1С», а «согласование заявок голосом», «сборка отчётности по звонку», «ввод первички из почты».</p>
+          <ul class="deliverables">
+            <li>Пилоты: типовая ERP, типовая БП, самописная отраслевая база</li>
+            <li>Готовые пресеты подключения к распространённым платформам агентов</li>
+            <li>Каталог отраслевых сценариев и семантических словарей</li>
+            <li>Заявка в реестр отечественного ПО</li>
+          </ul>
+          <div class="dod"><b>Готово когда</b><span>Первая продажа коннектора идёт через партнёрский офис, а не через команду разработки.</span></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section id="team">
+    <div class="sechead"><span class="secnum">05</span><h2>Команда и оценка</h2></div>
+    <p class="lede">Состав рассчитан на срок до релиз-кандидата. Роль архитектора не совмещается с разработкой: контракт API и правовой регламент требуют отдельного владельца.</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Роль</th><th class="num">FTE</th><th>Зона ответственности</th></tr></thead>
+        <tbody>
+          <tr><td>Архитектор / тимлид</td><td class="num">1,0</td><td>Контракт API, ADR, регламент clean room, приёмка</td></tr>
+          <tr><td>Разработчик 1С</td><td class="num">2,0</td><td>Расширение: интроспекция, данные, запросы, отчёты, админ-панель</td></tr>
+          <tr><td>Backend-разработчик</td><td class="num">1,0</td><td>Шлюз, MCP и OpenAPI, инфраструктура, наблюдаемость</td></tr>
+          <tr><td>QA</td><td class="num">0,5</td><td>Автотесты на четырёх стендах, нагрузка, регресс при обновлении типовых</td></tr>
+          <tr><td>Технический писатель</td><td class="num">0,5</td><td>Документация внедренца, администратора и разработчика сценариев</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:20px">Отдельно, вне FTE: юридическая проверка регламента и товарного знака перед Ф4, внешний пентест перед пилотами.</p>
+  </section>
+
+  <section id="risks">
+    <div class="sechead"><span class="secnum">06</span><h2>Риски</h2></div>
+    <p class="lede">Первые два способны обнулить экономику продукта, поэтому проверяются в нулевой и первой фазах, а не когда обнаружатся у клиента.</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Риск</th><th>Уровень</th><th>Что делаем</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><b>Клиентские лицензии 1С.</b> Каждый сеанс HTTP-сервиса занимает лицензию; десяток агентов способен выесть их у живых пользователей</td>
+            <td><span class="sev high">Высокий</span></td>
+            <td>Просчитать модель сеансов в Ф0, пул с переиспользованием, перенос тяжёлого в фоновые задания, явная рекомендация по лицензиям в документации</td>
+          </tr>
+          <tr>
+            <td><b>Ошибочная запись агентом.</b> Галлюцинация модели превращается в проведённый документ</td>
+            <td><span class="sev high">Высокий</span></td>
+            <td>Dry-run и подтверждение обязательны, а не опциональны; лимиты сумм и количеств на клиента интеграции; групповой откат; полный аудит</td>
+          </tr>
+          <tr>
+            <td><b>Публикация наружу.</b> HTTP-сервис 1С в интернете — классический вектор атаки</td>
+            <td><span class="sev high">Высокий</span></td>
+            <td>1С доступна только шлюзу: mTLS или VPN, никакой прямой публикации; rate limit и WAF на шлюзе; пентест перед пилотами</td>
+          </tr>
+          <tr>
+            <td><b>Объём метаданных ERP.</b> Полная интроспекция десятков тысяч объектов не помещается ни в память, ни в контекст модели</td>
+            <td><span class="sev mid">Средний</span></td>
+            <td>Ленивая загрузка, кэш с версионированием, discovery вместо выгрузки всего, ограничение области видимости правилами доступа</td>
+          </tr>
+          <tr>
+            <td><b>Обновления типовых конфигураций.</b> Заимствованные объекты ломают штатное обновление у клиента</td>
+            <td><span class="sev mid">Средний</span></td>
+            <td>Минимум заимствований, только расширяющие методы; регресс-тесты на каждом релизе типовых; матрица поддерживаемых версий</td>
+          </tr>
+          <tr>
+            <td><b>Конкуренция.</b> Похожие решения на рынке уже есть</td>
+            <td><span class="sev mid">Средний</span></td>
+            <td>Дифференциация из раздела 03 закладывается в Ф1–Ф3; канал продаж через партнёрскую сеть — преимущество, которое конкурентам не скопировать</td>
+          </tr>
+          <tr>
+            <td><b>Дрейф спецификации MCP.</b> Протокол меняется быстрее релизного цикла 1С</td>
+            <td><span class="sev low">Низкий</span></td>
+            <td>Именно поэтому MCP живёт в шлюзе: обновляется контейнер, расширение у клиента не трогается</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="week-one">
+    <div class="sechead"><span class="secnum">07</span><h2>Первая неделя</h2></div>
+    <p class="lede">Цель недели — не документы, а работающий сквозной скелет: запрос из агента доходит до базы и возвращает реальные данные. Всё остальное потом наращивается на него.</p>
+
+    <div class="week">
+      <div class="day"><span class="d">Дни 1–2</span><p><b>Контур.</b> Стенд УТ 11, публикация на веб-сервере, пустое расширение с одним HTTP-сервисом, отвечающим <code>200 OK</code>. Заодно замеряется занятие лицензии на сеанс — цифра нужна для главного риска.</p></div>
+      <div class="day"><span class="d">День 3</span><p><b>Контракт.</b> Черновик OpenAPI на <code>/v1/meta</code> и <code>/v1/data</code>: как выглядит ссылка, дата, табличная часть и ошибка. Дальше этот формат менять дорого.</p></div>
+      <div class="day"><span class="d">Дни 4–5</span><p><b>Сквозной прототип.</b> Интроспекция одного справочника → JSON → MCP-инструмент в шлюзе → живой запрос из Claude Desktop. Скелет собран.</p></div>
+      <div class="day"><span class="d">Итог недели</span><p><b>Демо и решение.</b> Показ прототипа заказчику продукта, подтверждение бюджета Ф0–Ф1 и фиксация регламента clean room до того, как написана первая строка продуктового кода.</p></div>
+    </div>
+  </section>
+
+  <p class="foot">Оценки сроков даны для указанного состава команды и предполагают доступность стендов с первой недели. Лицензионная модель 1С проверяется на конкретных версиях платформы клиента — это единственный параметр, способный существенно изменить экономику решения.</p>
+
+</div>
+</body>
+</html>
