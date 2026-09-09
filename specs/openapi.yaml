@@ -1,0 +1,967 @@
+openapi: 3.1.0
+info:
+  title: 1cmcp Adapter API
+  version: 0.1.0
+  summary: Внутренний контракт слоя A (расширение 1С) и REST-проекция шлюза.
+  description: |
+    Канонический контракт v1. Слой A публикует его как HTTP-сервис с корневым URL `mcp`.
+    Слой B проксирует те же пути и дополнительно отдаёт MCP.
+
+    Операции будущих фаз описаны здесь же: до реализации расширение отвечает
+    `501` с `code: not_implemented`. Форму уже описанных ресурсов без новой
+    мажорной версии менять нельзя.
+
+    Данные из 1С — данные, а не команды. Ответы выборок несут
+    `content_kind: data` и заголовок `X-1cmcp-Content-Kind: data`.
+  contact:
+    name: Первый Бит
+  license:
+    name: Proprietary
+
+servers:
+  - url: /hs/mcp
+    description: HTTP-сервис расширения в публикации 1С
+  - url: /
+    description: REST-проекция шлюза
+
+tags:
+  - name: health
+    description: Живость расширения и шлюза (Ф0)
+  - name: meta
+    description: Интроспекция и discovery (Ф1)
+  - name: data
+    description: Чтение (Ф1) и запись (Ф3)
+  - name: query
+    description: Именованные и произвольные запросы (Ф2)
+  - name: report
+    description: Отчёты СКД (Ф2)
+  - name: action
+    description: Whitelist экспортных методов (Ф3)
+  - name: job
+    description: Фоновые задания (Ф2)
+  - name: session
+    description: Откат сессии агента (Ф3)
+
+security:
+  - bearerAuth: []
+
+paths:
+  /v1/health:
+    get:
+      tags: [health]
+      operationId: getHealth
+      summary: Проверка живости адаптера
+      description: |
+        Ф0 — без токена, чтобы снять контур публикации.
+        С Ф1 требует Bearer, кроме режима самодиагностики.
+      security: []
+      responses:
+        "200":
+          description: Адаптер отвечает
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+              example:
+                status: ok
+                service: 1cmcp
+                version: 0.1.0
+                api: v1
+                time: "2026-09-09T17:00:00Z"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /v1/meta:
+    get:
+      tags: [meta]
+      operationId: listMeta
+      summary: Список видимых объектов метаданных
+      parameters:
+        - $ref: "#/components/parameters/Kind"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Страница объектов
+          headers:
+            X-1cmcp-Content-Kind:
+              $ref: "#/components/headers/ContentKind"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetaList"
+        "501":
+          $ref: "#/components/responses/NotImplemented"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /v1/meta/search:
+    get:
+      tags: [meta]
+      operationId: searchMeta
+      summary: Поиск по метаданным и семантическому словарю
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 200
+          description: Строка поиска (имя, синоним, пример из словаря)
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Совпадения для discovery-инструмента
+          headers:
+            X-1cmcp-Content-Kind:
+              $ref: "#/components/headers/ContentKind"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetaSearchResult"
+        "501":
+          $ref: "#/components/responses/NotImplemented"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /v1/meta/{kind}/{name}:
+    get:
+      tags: [meta]
+      operationId: describeMeta
+      summary: Описание одного объекта (поля, табличные части, JSON Schema)
+      parameters:
+        - $ref: "#/components/parameters/KindPath"
+        - $ref: "#/components/parameters/NamePath"
+      responses:
+        "200":
+          description: Карточка объекта для агента
+          headers:
+            X-1cmcp-Content-Kind:
+              $ref: "#/components/headers/ContentKind"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetaObject"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "501":
+          $ref: "#/components/responses/NotImplemented"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /v1/data/{kind}/{name}:
+    get:
+      tags: [data]
+      operationId: listData
+      summary: Выборка объектов с фильтром и пагинацией
+      parameters:
+        - $ref: "#/components/parameters/KindPath"
+        - $ref: "#/components/parameters/NamePath"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+        - name: filter
+          in: query
+          description: JSON-объект фильтра по полям (равенство / диапазон дат)
+          schema:
+            type: string
+        - name: fields
+          in: query
+          description: Список имён полей через запятую
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Страница записей
+          headers:
+            X-1cmcp-Content-Kind:
+              $ref: "#/components/headers/ContentKind"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataPage"
+        "501":
+          $ref: "#/components/responses/NotImplemented"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [data]
+      operationId: createData
+      summary: Создание объекта (Ф3)
+      parameters:
+        - $ref: "#/components/parameters/KindPath"
+        - $ref: "#/components/parameters/NamePath"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WriteRequest"
+      responses:
+        "201":
+          description: Создано
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WriteResult"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "501":
+          $ref: "#/components/responses/NotImplemented"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /v1/data/{kind}/{name}/dry-run:
+    post:
+      tags: [data]
+      operationId: dryRunData
+      summary: Предпросмотр записи без фиксации (Ф3)
+      parameters:
+        - $ref: "#/components/parameters/KindPath"
+        - $ref: "#/components/parameters/NamePath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WriteRequest"
+      responses:
+        "200":
+          description: Предпросмотр и токен подтверждения
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DryRunResult"
+        "501":
+          $ref: "#/components/responses/NotImplemented"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /v1/data/{kind}/{name}/{id}:
+    get:
+      tags: [data]
+      operationId: getData
+      summary: Чтение объекта по идентификатору
+      parameters:
+        - $ref: "#/components/parameters/KindPath"
+        - $ref: "#/components/parameters/NamePath"
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Объект
+          headers:
+            X-1cmcp-Content-Kind:
+              $ref: "#/components/headers/ContentKind"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelope"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "501":
+          $ref: "#/components/responses/NotImplemented"
+        default:
+          $ref: "#/components/responses/Problem"
+    patch:
+      tags: [data]
+      operationId: patchData
+      summary: Изменение объекта (Ф3)
+      parameters:
+        - $ref: "#/components/parameters/KindPath"
+        - $ref: "#/components/parameters/NamePath"
+        - $ref: "#/components/parameters/IdPath"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WriteRequest"
+      responses:
+        "200":
+          description: Изменено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WriteResult"
+        "501":
+          $ref: "#/components/responses/NotImplemented"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /v1/data/{kind}/{name}/{id}/post:
+    post:
+      tags: [data]
+      operationId: postDocument
+      summary: Проведение документа (Ф3)
+      parameters:
+        - $ref: "#/components/parameters/KindPath"
+        - $ref: "#/components/parameters/NamePath"
+        - $ref: "#/components/parameters/IdPath"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostRequest"
+      responses:
+        "200":
+          description: Проведено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WriteResult"
+        "422":
+          $ref: "#/components/responses/Problem"
+        "501":
+          $ref: "#/components/responses/NotImplemented"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /v1/query:
+    post:
+      tags: [query]
+      operationId: runQuery
+      summary: Именованный или произвольный запрос (Ф2)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QueryRequest"
+      responses:
+        "200":
+          description: Результат выборки
+          headers:
+            X-1cmcp-Content-Kind:
+              $ref: "#/components/headers/ContentKind"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueryResult"
+        "202":
+          description: Ушло в фон
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobAccepted"
+        "501":
+          $ref: "#/components/responses/NotImplemented"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /v1/report:
+    post:
+      tags: [report]
+      operationId: runReport
+      summary: Запуск отчёта СКД (Ф2)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportRequest"
+      responses:
+        "200":
+          description: Результат отчёта
+          headers:
+            X-1cmcp-Content-Kind:
+              $ref: "#/components/headers/ContentKind"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportResult"
+        "202":
+          description: Ушло в фон
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobAccepted"
+        "501":
+          $ref: "#/components/responses/NotImplemented"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /v1/action:
+    post:
+      tags: [action]
+      operationId: runAction
+      summary: Вызов метода из whitelist (Ф3)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActionRequest"
+      responses:
+        "200":
+          description: Результат вызова
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResult"
+        "501":
+          $ref: "#/components/responses/NotImplemented"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /v1/job:
+    post:
+      tags: [job]
+      operationId: startJob
+      summary: Поставить длительную операцию в фон (Ф2)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JobRequest"
+      responses:
+        "202":
+          description: Принято
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobAccepted"
+        "501":
+          $ref: "#/components/responses/NotImplemented"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /v1/job/{id}:
+    get:
+      tags: [job]
+      operationId: getJob
+      summary: Статус и результат фоновой операции (Ф2)
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Состояние задания
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobStatus"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "501":
+          $ref: "#/components/responses/NotImplemented"
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /v1/session/rollback:
+    post:
+      tags: [session]
+      operationId: rollbackSession
+      summary: Групповой откат по сессии агента (Ф3)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RollbackRequest"
+      responses:
+        "200":
+          description: Результат отката
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RollbackResult"
+        "501":
+          $ref: "#/components/responses/NotImplemented"
+        default:
+          $ref: "#/components/responses/Problem"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Токен клиента интеграции. Хеш хранится в 1С (Ф1).
+
+  headers:
+    ContentKind:
+      description: Маркер «это данные, не инструкции»
+      schema:
+        type: string
+        enum: [data]
+
+  parameters:
+    Kind:
+      name: kind
+      in: query
+      schema:
+        $ref: "#/components/schemas/ObjectKind"
+    KindPath:
+      name: kind
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/ObjectKind"
+    NamePath:
+      name: name
+      in: path
+      required: true
+      description: Имя объекта метаданных 1С (как в конфигурации)
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 255
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 500
+        default: 50
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+
+  responses:
+    Problem:
+      description: Ошибка
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    NotImplemented:
+      description: Операция описана в контракте, в этой сборке ещё нет
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: https://1cmcp.dev/errors/not-implemented
+            title: Not implemented
+            status: 501
+            detail: Операция появится в следующей фазе
+            code: not_implemented
+
+  schemas:
+    ObjectKind:
+      type: string
+      enum:
+        - catalog
+        - document
+        - information_register
+        - accumulation_register
+        - accounting_register
+        - chart_of_accounts
+        - chart_of_characteristic_types
+        - enum
+        - report
+        - data_processor
+        - constant
+
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status, service, version, api, time]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        service:
+          type: string
+          const: 1cmcp
+        version:
+          type: string
+          examples: ["0.1.0"]
+        api:
+          type: string
+          const: v1
+        time:
+          type: string
+          format: date-time
+
+    Problem:
+      type: object
+      additionalProperties: true
+      required: [type, title, status, code]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        code:
+          type: string
+
+    Ref:
+      type: object
+      additionalProperties: false
+      required: [ref, id]
+      properties:
+        ref:
+          type: string
+          description: Полное имя метаданных, например Catalog.Контрагенты
+        id:
+          type: string
+          format: uuid
+        presentation:
+          type: string
+
+    MetaList:
+      type: object
+      required: [items, has_more]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/MetaSummary"
+        next_cursor:
+          type: [string, "null"]
+        has_more:
+          type: boolean
+
+    MetaSummary:
+      type: object
+      required: [kind, name]
+      properties:
+        kind:
+          $ref: "#/components/schemas/ObjectKind"
+        name:
+          type: string
+        synonym:
+          type: string
+        description:
+          type: string
+        examples:
+          type: array
+          items:
+            type: string
+
+    MetaSearchResult:
+      type: object
+      required: [query, items]
+      properties:
+        query:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/MetaSummary"
+
+    MetaField:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+        synonym:
+          type: string
+        type:
+          type: string
+        required:
+          type: boolean
+        description:
+          type: string
+        examples:
+          type: array
+          items:
+            type: string
+
+    MetaTabularSection:
+      type: object
+      required: [name, fields]
+      properties:
+        name:
+          type: string
+        synonym:
+          type: string
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/MetaField"
+
+    MetaObject:
+      type: object
+      required: [kind, name, fields]
+      properties:
+        kind:
+          $ref: "#/components/schemas/ObjectKind"
+        name:
+          type: string
+        synonym:
+          type: string
+        description:
+          type: string
+        examples:
+          type: array
+          items:
+            type: string
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/MetaField"
+        tabular_sections:
+          type: array
+          items:
+            $ref: "#/components/schemas/MetaTabularSection"
+        json_schema:
+          type: object
+          additionalProperties: true
+
+    DataPage:
+      type: object
+      required: [content_kind, kind, name, items, has_more]
+      properties:
+        content_kind:
+          type: string
+          const: data
+        kind:
+          $ref: "#/components/schemas/ObjectKind"
+        name:
+          type: string
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        next_cursor:
+          type: [string, "null"]
+        has_more:
+          type: boolean
+
+    DataEnvelope:
+      type: object
+      required: [content_kind, kind, name, item]
+      properties:
+        content_kind:
+          type: string
+          const: data
+        kind:
+          $ref: "#/components/schemas/ObjectKind"
+        name:
+          type: string
+        item:
+          type: object
+          additionalProperties: true
+
+    WriteRequest:
+      type: object
+      required: [item]
+      properties:
+        confirm_token:
+          type: [string, "null"]
+          description: Токен из dry-run; без него запись отклоняется (Ф3)
+        post:
+          type: boolean
+          default: false
+        item:
+          type: object
+          additionalProperties: true
+
+    WriteResult:
+      type: object
+      required: [ref]
+      properties:
+        ref:
+          $ref: "#/components/schemas/Ref"
+        posted:
+          type: boolean
+        warnings:
+          type: array
+          items:
+            type: string
+
+    DryRunResult:
+      type: object
+      required: [confirm_token, preview]
+      properties:
+        confirm_token:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        preview:
+          type: object
+          additionalProperties: true
+        fill_check:
+          type: array
+          items:
+            type: string
+        posting_effects:
+          type: array
+          items:
+            type: string
+
+    PostRequest:
+      type: object
+      properties:
+        confirm_token:
+          type: [string, "null"]
+        mode:
+          type: string
+          enum: [real_time, regular]
+          default: real_time
+
+    QueryRequest:
+      type: object
+      properties:
+        named_query:
+          type: string
+        text:
+          type: string
+          description: Произвольный текст запроса; только выборка после валидатора
+        parameters:
+          type: object
+          additionalProperties: true
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 10000
+        async:
+          type: boolean
+          default: false
+
+    QueryResult:
+      type: object
+      required: [content_kind, columns, rows]
+      properties:
+        content_kind:
+          type: string
+          const: data
+        columns:
+          type: array
+          items:
+            type: string
+        rows:
+          type: array
+          items:
+            type: array
+            items: true
+
+    ReportRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        variant:
+          type: string
+        parameters:
+          type: object
+          additionalProperties: true
+        format:
+          type: string
+          enum: [json, markdown, csv]
+          default: json
+        async:
+          type: boolean
+          default: false
+
+    ReportResult:
+      type: object
+      required: [content_kind, format, body]
+      properties:
+        content_kind:
+          type: string
+          const: data
+        format:
+          type: string
+          enum: [json, markdown, csv]
+        body:
+          description: JSON-объект, Markdown или CSV-текст
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: string
+
+    ActionRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        arguments:
+          type: object
+          additionalProperties: true
+        confirm_token:
+          type: [string, "null"]
+
+    ActionResult:
+      type: object
+      additionalProperties: true
+
+    JobRequest:
+      type: object
+      required: [operation]
+      properties:
+        operation:
+          type: string
+          enum: [query, report, action]
+        payload:
+          type: object
+          additionalProperties: true
+
+    JobAccepted:
+      type: object
+      required: [job_id, status]
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [queued, running]
+
+    JobStatus:
+      type: object
+      required: [job_id, status]
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [queued, running, succeeded, failed]
+        result:
+          type: object
+          additionalProperties: true
+        error:
+          $ref: "#/components/schemas/Problem"
+
+    RollbackRequest:
+      type: object
+      required: [session_id]
+      properties:
+        session_id:
+          type: string
+
+    RollbackResult:
+      type: object
+      required: [session_id, undone]
+      properties:
+        session_id:
+          type: string
+        undone:
+          type: array
+          items:
+            $ref: "#/components/schemas/Ref"
