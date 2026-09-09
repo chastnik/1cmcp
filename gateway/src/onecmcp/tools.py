@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from onecmcp.client import AdapterError, OneCClient
@@ -89,6 +90,95 @@ async def data_get_tool(client: OneCClient, kind: str, name: str, item_id: str) 
         return mark_as_data(await client.get_data(kind, name, item_id))
     except AdapterError as exc:
         return _error_payload(exc)
+
+
+def _accepted_or_data(status_code: int, payload: dict[str, Any]) -> dict[str, Any]:
+    if status_code == 202:
+        return payload
+    return mark_as_data(payload)
+
+
+async def query_tool(
+    client: OneCClient,
+    named_query: str | None = None,
+    text: str | None = None,
+    parameters_json: str | None = None,
+    limit: int | None = None,
+    async_mode: bool = False,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {"async": async_mode}
+    if named_query:
+        payload["named_query"] = named_query
+    if text:
+        payload["text"] = text
+    if limit is not None:
+        payload["limit"] = limit
+    if parameters_json:
+        params, error = _try_json_object(parameters_json, "parameters")
+        if error is not None:
+            return error
+        payload["parameters"] = params
+    try:
+        status, body = await client.run_query(payload)
+        return _accepted_or_data(status, body)
+    except AdapterError as exc:
+        return _error_payload(exc)
+
+
+async def report_tool(
+    client: OneCClient,
+    name: str,
+    variant: str | None = None,
+    parameters_json: str | None = None,
+    format: str = "json",
+    async_mode: bool = False,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {"name": name, "format": format, "async": async_mode}
+    if variant:
+        payload["variant"] = variant
+    if parameters_json:
+        params, error = _try_json_object(parameters_json, "parameters")
+        if error is not None:
+            return error
+        payload["parameters"] = params
+    try:
+        status, body = await client.run_report(payload)
+        return _accepted_or_data(status, body)
+    except AdapterError as exc:
+        return _error_payload(exc)
+
+
+async def job_get_tool(client: OneCClient, job_id: str) -> dict[str, Any]:
+    try:
+        payload = await client.get_job(job_id)
+    except AdapterError as exc:
+        return _error_payload(exc)
+    result = payload.get("result")
+    if isinstance(result, dict):
+        payload = {**payload, "result": mark_as_data(result)}
+    return payload
+
+
+def _try_json_object(raw: str, field: str) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    try:
+        loaded = json.loads(raw)
+    except json.JSONDecodeError:
+        return None, {
+            "type": "https://1cmcp.dev/errors/bad_request",
+            "title": "Bad request",
+            "status": 400,
+            "code": "bad_request",
+            "detail": f"{field} должен быть JSON-объектом",
+        }
+    if not isinstance(loaded, dict):
+        return None, {
+            "type": "https://1cmcp.dev/errors/bad_request",
+            "title": "Bad request",
+            "status": 400,
+            "code": "bad_request",
+            "detail": f"{field} должен быть JSON-объектом",
+        }
+    return loaded, None
 
 
 def _error_payload(exc: AdapterError) -> dict[str, Any]:

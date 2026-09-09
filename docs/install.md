@@ -276,7 +276,7 @@ curl -sS "http://1c-web/ut11/hs/mcp/v1/health"
 {
   "status": "ok",
   "service": "1cmcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "api": "v1",
   "time": "2026-09-09T18:00:00Z"
 }

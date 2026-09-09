@@ -177,6 +177,114 @@
 					</Method>
 				</ChildObjects>
 			</URLTemplate>
+			<URLTemplate uuid="d5c3e9bf-21dd-4c2c-8203-fdafb93715c7">
+				<Properties>
+					<Name>Query</Name>
+			<Synonym>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Query</v8:content>
+				</v8:item>
+			</Synonym>
+					<Template>/v1/query</Template>
+				</Properties>
+				<ChildObjects>
+					<Method uuid="8a871b8f-4d26-4553-9752-b761604a229a">
+						<Properties>
+							<Name>POST</Name>
+			<Synonym>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>POST</v8:content>
+				</v8:item>
+			</Synonym>
+							<HTTPMethod>POST</HTTPMethod>
+							<Handler>QueryPOST</Handler>
+						</Properties>
+					</Method>
+				</ChildObjects>
+			</URLTemplate>
+			<URLTemplate uuid="4ae12bb2-157d-4808-93e2-dc30d82eb8ff">
+				<Properties>
+					<Name>Report</Name>
+			<Synonym>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Report</v8:content>
+				</v8:item>
+			</Synonym>
+					<Template>/v1/report</Template>
+				</Properties>
+				<ChildObjects>
+					<Method uuid="60d05e9a-7dfe-48dd-a8cc-e921b44de7c9">
+						<Properties>
+							<Name>POST</Name>
+			<Synonym>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>POST</v8:content>
+				</v8:item>
+			</Synonym>
+							<HTTPMethod>POST</HTTPMethod>
+							<Handler>ReportPOST</Handler>
+						</Properties>
+					</Method>
+				</ChildObjects>
+			</URLTemplate>
+			<URLTemplate uuid="daf4536b-f529-4f73-9b2f-e5b9a3c2e094">
+				<Properties>
+					<Name>Job</Name>
+			<Synonym>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Job</v8:content>
+				</v8:item>
+			</Synonym>
+					<Template>/v1/job</Template>
+				</Properties>
+				<ChildObjects>
+					<Method uuid="fa05dab0-5b7a-45e3-8f94-9822ee9d65a9">
+						<Properties>
+							<Name>POST</Name>
+			<Synonym>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>POST</v8:content>
+				</v8:item>
+			</Synonym>
+							<HTTPMethod>POST</HTTPMethod>
+							<Handler>JobPOST</Handler>
+						</Properties>
+					</Method>
+				</ChildObjects>
+			</URLTemplate>
+			<URLTemplate uuid="d6537835-a78b-4dba-9567-bdeea9e3cf38">
+				<Properties>
+					<Name>JobItem</Name>
+			<Synonym>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Job item</v8:content>
+				</v8:item>
+			</Synonym>
+					<Template>/v1/job/{id}</Template>
+				</Properties>
+				<ChildObjects>
+					<Method uuid="b8a89de7-c0fb-4e93-81de-8a120d5a2b1a">
+						<Properties>
+							<Name>GET</Name>
+			<Synonym>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>GET</v8:content>
+				</v8:item>
+			</Synonym>
+							<HTTPMethod>GET</HTTPMethod>
+							<Handler>JobGET</Handler>
+						</Properties>
+					</Method>
+				</ChildObjects>
+			</URLTemplate>
 		</ChildObjects>
 	</HTTPService>
 </MetaDataObject>

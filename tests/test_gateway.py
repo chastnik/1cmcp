@@ -66,7 +66,7 @@ def test_meta_describe_and_data_roundtrip(gateway_client) -> None:
 
 
 def test_future_operations_return_501_problem(gateway_client) -> None:
-    response = gateway_client.post("/v1/query", json={"text": "ВЫБРАТЬ 1"})
+    response = gateway_client.post("/v1/action", json={"name": "DemoAction"})
     assert response.status_code == 501
     problem = response.json()
     assert problem["code"] == "not_implemented"
@@ -88,8 +88,8 @@ def test_meta_list_and_not_found_paths(gateway_client) -> None:
     documents = gateway_client.get("/v1/meta", params={"kind": "document"})
     assert documents.json()["items"][0]["name"] == "DemoShipments"
 
-    empty = gateway_client.get("/v1/meta", params={"kind": "report"})
-    assert empty.json()["items"] == []
+    reports = gateway_client.get("/v1/meta", params={"kind": "report"})
+    assert reports.json()["items"][0]["name"] == "DemoSales"
 
     missing_list = gateway_client.get("/v1/data/catalog/Unknown")
     assert missing_list.status_code == 404

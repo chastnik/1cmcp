@@ -54,3 +54,28 @@ class MetaObject(BaseModel):
     examples: list[str] = Field(default_factory=list)
     tabular_sections: list[dict[str, Any]] = Field(default_factory=list)
     json_schema: dict[str, Any] | None = None
+
+
+class QueryResult(BaseModel):
+    content_kind: str = "data"
+    columns: list[str]
+    rows: list[list[Any]]
+    named_query: str | None = None
+
+
+class ReportResult(BaseModel):
+    content_kind: str = "data"
+    format: str
+    body: Any
+
+
+class JobAccepted(BaseModel):
+    job_id: str
+    status: str
+
+
+class JobStatus(BaseModel):
+    job_id: str
+    status: str
+    result: dict[str, Any] | None = None
+    error: Problem | None = None

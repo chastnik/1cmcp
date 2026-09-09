@@ -1,6 +1,17 @@
 from __future__ import annotations
 
-from onecmcp.models import Health, MetaField, MetaObject, MetaSummary, Problem, Ref
+from onecmcp.models import (
+    Health,
+    JobAccepted,
+    JobStatus,
+    MetaField,
+    MetaObject,
+    MetaSummary,
+    Problem,
+    QueryResult,
+    Ref,
+    ReportResult,
+)
 
 
 def test_contract_models() -> None:
@@ -18,3 +29,12 @@ def test_contract_models() -> None:
     obj = MetaObject(kind="catalog", name="DemoCounterparties", fields=[field], synonym=summary.synonym)
     assert obj.fields[0].name == "INN"
     assert obj.json_schema is None
+
+    query = QueryResult(columns=["Value"], rows=[[1]])
+    assert query.content_kind == "data"
+    accepted = JobAccepted(job_id="00000000-0000-0000-0000-000000000000", status="queued")
+    assert accepted.status == "queued"
+    status = JobStatus(job_id=accepted.job_id, status="succeeded", result={"ok": True})
+    assert status.result == {"ok": True}
+    rendered = ReportResult(format="csv", body="a,b\n")
+    assert rendered.content_kind == "data"

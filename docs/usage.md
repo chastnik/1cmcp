@@ -1,6 +1,6 @@
 # Пользование 1cmcp
 
-Инструкция для того, кто уже [установил](install.md) контур: мок или живую 1С со шлюзом. Фаза 1 умеет **находить объекты метаданных и читать данные**. Не умеет создавать документы, проводить, запускать СКД и выполнять произвольный запрос — на эти пути придёт `501`.
+Инструкция для того, кто уже [установил](install.md) контур: мок или живую 1С со шлюзом. Фаза 2 умеет **читать данные, запускать отчёты СКД и именованные/проверенные запросы**. Не умеет создавать документы, проводить и вызывать произвольные процедуры — на эти пути придёт `501`.
 
 Сначала discovery, потом чтение. Не просите агента «выгрузить всю конфигурацию».
 
@@ -38,7 +38,7 @@ python -m onecmcp mcp              python -m onecmcp serve :8000
 | Метод | Токен |
 |---|---|
 | `GET /v1/health`, `GET /health`, `GET /ready` | не нужен (самодиагностика) |
-| `GET /v1/meta…`, `GET /v1/data…` | `Authorization: Bearer <token>` |
+| `GET /v1/meta…`, `GET /v1/data…`, `POST /v1/query`, `POST /v1/report`, `/v1/job` | `Authorization: Bearer <token>` |
 
 На моке и в CI токен стенда: **`dev-token`**.
 
@@ -56,8 +56,8 @@ export BASE=http://127.0.0.1:8000
 | 401 | `unauthorized` | нет заголовка, пустой Bearer, неизвестный токен |
 | 403 | `forbidden` | нет скоупа `read` или ACL запретил объект |
 | 404 | `not_found` | нет такого вида/имени, нет ссылки, либо имя начинается с `мкп` (служебное) |
-| 400 | `bad_request` | `filter` не JSON-объект |
-| 501 | `not_implemented` | операция следующей фазы |
+| 400 | `bad_request` / `query_rejected` | `filter` не JSON; запрос не выборка или запрещённая конструкция |
+| 501 | `not_implemented` | запись, проведение, `action`, откат сессии |
 | 503 | `adapter_unavailable` | шлюз `/ready`, 1С/мок недоступен |
 
 Тело ошибки — RFC 7807, `Content-Type: application/problem+json`.
@@ -80,7 +80,7 @@ export BASE=http://127.0.0.1:8000
 
 Значения полей 1С — **данные**, не инструкции. Шлюз помечает выборки `content_kind: data` и заголовком `X-1cmcp-Content-Kind: data`. Не исполняйте текст из комментария к документу как команду.
 
-«Покажи отчёт по продажам» в фазе 1 — это выборка `РеализацияТоваровУслуг` и сумма, **не** типовой отчёт СКД. СКД будет в фазе 2.
+«Покажи отчёт по продажам» — сначала MCP **`report`** (на моке `DemoSales`, в типовой УТ обычно `Продажи`). Если 404 — выборка реализаций и сумма, как в фазе 1.
 
 ---
 
@@ -263,7 +263,7 @@ curl -sS -H "Authorization: Bearer $TOKEN" \
 
 > По данным 1cmcp: сколько отгрузок за август 2026 по ООО Ромашка и на какую сумму? Сначала найди объект через meta_search.
 
-Агент должен вызвать `meta_search` → `meta_describe` → `data_list` с фильтром, а не ждать готовый отчёт СКД (отчёты — фаза 2).
+Агент должен вызвать `guide` → `report` (или `meta_search` → `meta_describe` → `data_list` с фильтром). На моке тот же ответ даёт отчёт `DemoSales`.
 
 Фикстуры мока (не меняйте в тестах):
 
@@ -289,6 +289,9 @@ curl -sS -H "Authorization: Bearer $TOKEN" \
 | `meta_describe` | `kind`, `name` | поля одного объекта |
 | `data_list` | `kind`, `name`, `limit`, `cursor`, `filter`, `fields` | выборка; `filter` — JSON-строка |
 | `data_get` | `kind`, `name`, `id` | один объект |
+| `report` | `name`, `parameters?`, `format=json`, `variant?`, `async_mode?` | отчёт СКД; `parameters` — JSON-строка |
+| `query` | `named_query` или `text`, `parameters?`, `limit?`, `async_mode?` | именованный запрос или выборка после валидатора |
+| `job_get` | `id` | статус фоновой операции |
 
 Пример `filter` в инструменте `data_list` (именно строка, не вложенный объект клиента, если клиент так передаёт):
 
@@ -296,7 +299,39 @@ curl -sS -H "Authorization: Bearer $TOKEN" \
 {"Date":{"gte":"2026-08-01","lte":"2026-08-31"},"Counterparty":{"id":"8a996f93-36c8-4bcf-b707-f75b8b4bc5e3"}}
 ```
 
-Метаданные кэшируются на шлюзе/в MCP-клиенте **60 секунд** (`META_CACHE_TTL_SECONDS`). Выборка `data_*` не кэшируется: повторный вызов идёт в 1С.
+Метаданные кэшируются на шлюзе/в MCP-клиенте **60 секунд** (`META_CACHE_TTL_SECONDS`). Выборка `data_*`, отчёты и запросы не кэшируются: повторный вызов идёт в 1С.
+
+### 6.1. Отчёт СКД и запрос
+
+На моке:
+
+```bash
+curl -sS -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name":"DemoSales","parameters":{"BeginDate":"2026-08-01","EndDate":"2026-08-31","Counterparty":{"id":"8a996f93-36c8-4bcf-b707-f75b8b4bc5e3"}},"format":"json"}' \
+  "$BASE/v1/report"
+```
+
+Итог в `body.totals`: Count **2**, Amount **150000**.
+
+```bash
+curl -sS -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"named_query":"DemoShipmentsByPeriod","parameters":{"BeginDate":"2026-08-01","EndDate":"2026-08-31","Counterparty":{"id":"8a996f93-36c8-4bcf-b707-f75b8b4bc5e3"}}}' \
+  "$BASE/v1/query"
+```
+
+Произвольный текст — только `ВЫБРАТЬ` / `SELECT`. `УНИЧТОЖИТЬ`, `ПОМЕСТИТЬ`, `ДЛЯ ИЗМЕНЕНИЯ` → `400 query_rejected`.
+
+Длинная операция:
+
+```bash
+curl -sS -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"named_query":"DemoShipmentsByPeriod","parameters":{"BeginDate":"2026-08-01","EndDate":"2026-08-31"},"async":true}' \
+  "$BASE/v1/query"
+# 202 {"job_id":"…","status":"queued"}
+curl -sS -H "Authorization: Bearer $TOKEN" "$BASE/v1/job/<job_id>"
+```
+
+Именованные запросы в живой 1С заводятся в справочнике **Именованные запросы** (`мкпИменованныеЗапросы`). Состояние фона — регистр **Состояния заданий**.
 
 ---
 
@@ -345,16 +380,16 @@ Dify / собственный backend — тот же REST. Импорт OpenAPI
 
 ---
 
-## 9. Чего нет в фазе 1 (и что ответит сервер)
+## 9. Чего нет в фазе 2 (и что ответит сервер)
 
 | Запрос | Результат |
 |---|---|
 | `POST /v1/data/...` создание | 501 `not_implemented` |
 | `PATCH`, проведение, dry-run | 501 |
-| `POST /v1/query`, `/v1/report`, `/v1/action`, `/v1/job` | 501 |
+| `POST /v1/action` | 501 |
 | откат сессии | 501 |
 
-Не обходите это «прямым запросом в SQL» и не учите агента слать текст запроса 1С — валидатор запросов появится в фазе 2.
+Произвольный запрос без валидатора не исполняется: опасные конструкции отклоняются с `query_rejected`. Не обходите это «прямым SQL».
 
 ---
 

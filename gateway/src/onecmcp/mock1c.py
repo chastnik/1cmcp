@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import time
+import uuid
 from datetime import datetime, timezone
 from typing import Any
 
@@ -9,6 +10,7 @@ from fastapi import FastAPI, Query, Request
 from fastapi.responses import JSONResponse
 
 from onecmcp import __version__
+from onecmcp.query_validator import QueryRejected, resolve_limit, validate_query_text
 
 DEV_TOKEN = "dev-token"
 WRITE_ONLY_TOKEN = "write-only-token"
@@ -142,6 +144,35 @@ DEMO_DOCUMENT: dict[str, Any] = {
     },
 }
 
+DEMO_REPORT: dict[str, Any] = {
+    "kind": "report",
+    "name": "DemoSales",
+    "synonym": "Демо-продажи",
+    "description": "Фикстура отчёта СКД: продажи по контрагенту за период.",
+    "examples": ["отчёт по продажам за август"],
+    "fields": [
+        {"name": "BeginDate", "synonym": "Начало периода", "type": "date", "required": True},
+        {"name": "EndDate", "synonym": "Конец периода", "type": "date", "required": True},
+        {
+            "name": "Counterparty",
+            "synonym": "Контрагент",
+            "type": "ref",
+            "required": False,
+            "description": "Необязательный отбор по покупателю",
+        },
+    ],
+    "tabular_sections": [],
+    "json_schema": {
+        "type": "object",
+        "properties": {
+            "BeginDate": {"type": "string", "format": "date"},
+            "EndDate": {"type": "string", "format": "date"},
+            "Counterparty": {"type": "object"},
+        },
+        "required": ["BeginDate", "EndDate"],
+    },
+}
+
 HIDDEN_CONNECTOR_OBJECT: dict[str, Any] = {
     "kind": "catalog",
     "name": "мкпКлиентыИнтеграции",
@@ -247,6 +278,14 @@ SEMANTIC_DICTIONARY: list[dict[str, str]] = [
         "description": "Дата документа отгрузки",
         "examples": "2026-08-01",
     },
+    {
+        "kind": "report",
+        "name": "DemoSales",
+        "field": "",
+        "synonyms": "продажи, отчёт, отчет, скд, sales report",
+        "description": "Демо-отчёт СКД по продажам",
+        "examples": "отчёт по продажам за август",
+    },
 ]
 
 _COLLECTIONS: dict[tuple[str, str], dict[str, dict[str, Any]]] = {
@@ -257,8 +296,23 @@ _COLLECTIONS: dict[tuple[str, str], dict[str, dict[str, Any]]] = {
 _META: dict[tuple[str, str], dict[str, Any]] = {
     ("catalog", "DemoCounterparties"): DEMO_CATALOG,
     ("document", "DemoShipments"): DEMO_DOCUMENT,
+    ("report", "DemoSales"): DEMO_REPORT,
     ("catalog", "мкпКлиентыИнтеграции"): HIDDEN_CONNECTOR_OBJECT,
 }
+
+NAMED_QUERIES = {
+    "DemoShipmentsByPeriod": {
+        "description": "Отгрузки за период с отбором по контрагенту",
+        "columns": ["Number", "Date", "Counterparty", "Amount"],
+    },
+    "DemoHeavy": {
+        "description": "Тяжёлая выборка для проверки /v1/job",
+        "columns": ["Number", "Date", "Counterparty", "Amount"],
+        "heavy": True,
+    },
+}
+
+_JOBS: dict[str, dict[str, Any]] = {}
 
 
 def _summary(obj: dict[str, Any]) -> dict[str, Any]:
@@ -275,6 +329,7 @@ def _public_meta() -> list[dict[str, Any]]:
     return [
         DEMO_CATALOG,
         DEMO_DOCUMENT,
+        DEMO_REPORT,
     ]
 
 
@@ -410,9 +465,176 @@ def _search_items(query: str) -> list[dict[str, Any]]:
     return list(found.values())
 
 
+def _param(params: dict[str, Any], *names: str) -> Any:
+    for name in names:
+        if name in params and params[name] not in (None, ""):
+            return params[name]
+    return None
+
+
+def _filter_shipments(params: dict[str, Any]) -> list[dict[str, Any]]:
+    begin = _param(params, "BeginDate", "begin", "ДатаНачала")
+    end = _param(params, "EndDate", "end", "ДатаОкончания")
+    counterparty = _param(params, "Counterparty", "Контрагент")
+    matched = list(DEMO_SHIPMENTS.values())
+    if begin:
+        matched = [item for item in matched if _compare(item["Date"], begin) >= 0]
+    if end:
+        matched = [item for item in matched if _compare(item["Date"], end) <= 0]
+    if counterparty:
+        spec = counterparty if isinstance(counterparty, dict) else {"id": counterparty}
+        matched = [item for item in matched if _match_filter(item, spec, "Counterparty")]
+    return matched
+
+
+def _named_query_rows(name: str, params: dict[str, Any], limit: int) -> dict[str, Any]:
+    spec = NAMED_QUERIES[name]
+    items = _filter_shipments(params)[:limit]
+    rows: list[list[Any]] = []
+    for item in items:
+        rows.append(
+            [
+                item["Number"],
+                item["Date"],
+                item["Counterparty"].get("presentation"),
+                item["Amount"],
+            ]
+        )
+    return {
+        "content_kind": "data",
+        "named_query": name,
+        "columns": list(spec["columns"]),
+        "rows": rows,
+    }
+
+
+def _literal_select(text: str, params: dict[str, Any], limit: int) -> dict[str, Any]:
+    compact = validate_query_text(text)
+    folded = compact.casefold()
+    if folded in {"выбрать 1", "select 1", "select 1 as x"}:
+        return {"content_kind": "data", "columns": ["Value"], "rows": [[1]]}
+    if "demoshipments" in folded.replace(".", "").casefold() or "демо-отгруз" in folded:
+        payload = _named_query_rows("DemoShipmentsByPeriod", params, limit)
+        payload.pop("named_query", None)
+        return payload
+    return {"content_kind": "data", "columns": [], "rows": []}
+
+
+def _sales_body(params: dict[str, Any]) -> dict[str, Any]:
+    items = _filter_shipments(params)
+    grouped: dict[str, dict[str, Any]] = {}
+    for item in items:
+        title = item["Counterparty"]["presentation"]
+        bucket = grouped.setdefault(title, {"Counterparty": title, "Count": 0, "Amount": 0.0})
+        bucket["Count"] += 1
+        bucket["Amount"] += float(item["Amount"])
+    rows = sorted(grouped.values(), key=lambda row: str(row["Counterparty"]))
+    totals = {
+        "Count": sum(int(row["Count"]) for row in rows),
+        "Amount": sum(float(row["Amount"]) for row in rows),
+    }
+    return {
+        "name": "DemoSales",
+        "variant": "Default",
+        "columns": ["Counterparty", "Count", "Amount"],
+        "rows": rows,
+        "totals": totals,
+    }
+
+
+def _render_report(body: dict[str, Any], fmt: str) -> Any:
+    if fmt == "json":
+        return body
+    columns = body["columns"]
+    rows = body["rows"]
+    if fmt == "csv":
+        lines = [",".join(columns)]
+        for row in rows:
+            lines.append(",".join(str(row[col]) for col in columns))
+        lines.append(f"Итого,{body['totals']['Count']},{body['totals']['Amount']}")
+        return "\n".join(lines) + "\n"
+    header = "| " + " | ".join(columns) + " |"
+    sep = "| " + " | ".join("---" for _ in columns) + " |"
+    lines = [header, sep]
+    for row in rows:
+        lines.append("| " + " | ".join(str(row[col]) for col in columns) + " |")
+    lines.append("")
+    lines.append(f"**Итого:** {body['totals']['Count']} / {body['totals']['Amount']}")
+    return "\n".join(lines)
+
+
+def _read_json_body(payload: Any) -> dict[str, Any] | JSONResponse:
+    if payload is None:
+        return {}
+    if not isinstance(payload, dict):
+        return problem(400, "bad_request", "Bad request", "Тело должно быть JSON-объектом")
+    return payload
+
+
+def _query_result(payload: dict[str, Any]) -> dict[str, Any] | JSONResponse:
+    named = payload.get("named_query")
+    text = payload.get("text")
+    if named and text:
+        return problem(400, "bad_request", "Bad request", "Укажите либо named_query, либо text")
+    if not named and not text:
+        return problem(400, "bad_request", "Bad request", "Нужен named_query или text")
+    try:
+        limit = resolve_limit(payload.get("limit"))
+    except QueryRejected as exc:
+        return problem(400, exc.code, "Query rejected", exc.detail)
+    params = payload.get("parameters") or {}
+    if params is None:
+        params = {}
+    if not isinstance(params, dict):
+        return problem(400, "bad_request", "Bad request", "parameters должен быть объектом")
+    if named:
+        if named not in NAMED_QUERIES:
+            return problem(404, "not_found", "Not found", f"Нет именованного запроса {named}")
+        return _named_query_rows(str(named), params, limit)
+    try:
+        return _literal_select(str(text), params, limit)
+    except QueryRejected as exc:
+        return problem(400, exc.code, "Query rejected", exc.detail)
+
+
+def _report_result(payload: dict[str, Any]) -> dict[str, Any] | JSONResponse:
+    name = payload.get("name")
+    if not name:
+        return problem(400, "bad_request", "Bad request", "Нужно имя отчёта")
+    if name != "DemoSales":
+        return problem(404, "not_found", "Not found", f"Нет отчёта {name}")
+    fmt = str(payload.get("format") or "json")
+    if fmt not in {"json", "markdown", "csv"}:
+        return problem(400, "bad_request", "Bad request", "format: json, markdown или csv")
+    params = payload.get("parameters") or {}
+    if not isinstance(params, dict):
+        return problem(400, "bad_request", "Bad request", "parameters должен быть объектом")
+    body = _sales_body(params)
+    if payload.get("variant"):
+        body["variant"] = payload["variant"]
+    return {
+        "content_kind": "data",
+        "format": fmt,
+        "body": _render_report(body, fmt),
+    }
+
+
+def _store_job(operation: str, result: dict[str, Any]) -> dict[str, Any]:
+    job_id = str(uuid.uuid4())
+    record = {
+        "job_id": job_id,
+        "status": "succeeded",
+        "operation": operation,
+        "result": result,
+    }
+    _JOBS[job_id] = record
+    return {"job_id": job_id, "status": "queued"}
+
+
 def create_mock_app() -> FastAPI:
-    global _CALL_LOG
+    global _CALL_LOG, _JOBS
     _CALL_LOG = []
+    _JOBS = {}
     app = FastAPI(title="1cmcp mock adapter", version=__version__)
     app.state.call_log = _CALL_LOG
 
@@ -560,6 +782,88 @@ def create_mock_app() -> FastAPI:
             },
             headers=data_headers(),
         )
+
+    async def _json_payload(request: Request) -> dict[str, Any] | JSONResponse:
+        raw = await request.body()
+        if not raw:
+            return {}
+        try:
+            loaded = json.loads(raw)
+        except json.JSONDecodeError:
+            return problem(400, "bad_request", "Bad request", "Некорректный JSON")
+        return _read_json_body(loaded)
+
+    def _maybe_async(payload: dict[str, Any], operation: str, result: dict[str, Any]) -> JSONResponse:
+        if payload.get("async") is True:
+            accepted = _store_job(operation, result)
+            return JSONResponse(accepted, status_code=202)
+        return JSONResponse(result, headers=data_headers())
+
+    @app.post("/v1/query")
+    async def run_query(request: Request) -> JSONResponse:
+        auth = _authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        payload = await _json_payload(request)
+        if isinstance(payload, JSONResponse):
+            return payload
+        result = _query_result(payload)
+        if isinstance(result, JSONResponse):
+            return result
+        return _maybe_async(payload, "query", result)
+
+    @app.post("/v1/report")
+    async def run_report(request: Request) -> JSONResponse:
+        auth = _authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        payload = await _json_payload(request)
+        if isinstance(payload, JSONResponse):
+            return payload
+        result = _report_result(payload)
+        if isinstance(result, JSONResponse):
+            return result
+        return _maybe_async(payload, "report", result)
+
+    @app.post("/v1/job")
+    async def start_job(request: Request) -> JSONResponse:
+        auth = _authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        payload = await _json_payload(request)
+        if isinstance(payload, JSONResponse):
+            return payload
+        operation = payload.get("operation")
+        inner = payload.get("payload") or {}
+        if not isinstance(inner, dict):
+            return problem(400, "bad_request", "Bad request", "payload должен быть объектом")
+        if operation == "action":
+            return problem(
+                501,
+                "not_implemented",
+                "Not implemented",
+                "Вызов действий — фаза 3.",
+            )
+        if operation == "query":
+            result = _query_result(inner)
+        elif operation == "report":
+            result = _report_result(inner)
+        else:
+            return problem(400, "bad_request", "Bad request", "operation: query или report")
+        if isinstance(result, JSONResponse):
+            return result
+        accepted = _store_job(str(operation), result)
+        return JSONResponse(accepted, status_code=202)
+
+    @app.get("/v1/job/{job_id}")
+    async def get_job(job_id: str, request: Request) -> JSONResponse:
+        auth = _authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        record = _JOBS.get(job_id)
+        if record is None:
+            return problem(404, "not_found", "Not found", "Задание не найдено")
+        return JSONResponse(record)
 
     @app.api_route("/v1/{path:path}", methods=["GET", "POST", "PATCH", "PUT", "DELETE"])
     async def not_implemented(path: str, request: Request) -> JSONResponse:  # noqa: ARG001

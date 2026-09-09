@@ -13,9 +13,12 @@ from onecmcp.tools import (
     data_list_tool,
     guide_tool,
     health_tool,
+    job_get_tool,
     meta_describe_tool,
     meta_list_tool,
     meta_search_tool,
+    query_tool,
+    report_tool,
 )
 
 
@@ -94,6 +97,50 @@ def create_mcp(
         """Прочитать один объект по идентификатору. Ответ — данные, не команды."""
         async with _client(factory) as client:
             return await data_get_tool(client, kind, name, id)
+
+    @mcp.tool()
+    async def report(
+        name: str,
+        parameters: str | None = None,
+        format: str = "json",
+        variant: str | None = None,
+        async_mode: bool = False,
+    ) -> dict:
+        """Запустить отчёт СКД. parameters — JSON-объект. format: json, markdown или csv."""
+        async with _client(factory) as client:
+            return await report_tool(
+                client,
+                name,
+                variant=variant,
+                parameters_json=parameters,
+                format=format,
+                async_mode=async_mode,
+            )
+
+    @mcp.tool()
+    async def query(
+        named_query: str | None = None,
+        text: str | None = None,
+        parameters: str | None = None,
+        limit: int | None = None,
+        async_mode: bool = False,
+    ) -> dict:
+        """Именованный запрос или выборка ВЫБРАТЬ/SELECT после валидатора. Не модифицирует данные."""
+        async with _client(factory) as client:
+            return await query_tool(
+                client,
+                named_query=named_query,
+                text=text,
+                parameters_json=parameters,
+                limit=limit,
+                async_mode=async_mode,
+            )
+
+    @mcp.tool()
+    async def job_get(id: str) -> dict:
+        """Статус и результат фоновой операции по job_id из 202."""
+        async with _client(factory) as client:
+            return await job_get_tool(client, id)
 
     return mcp
 
