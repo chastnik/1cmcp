@@ -30,6 +30,10 @@ def test_packs_load_and_extend() -> None:
     assert set(KNOWN_PRESETS) == {"ut11", "ka2", "erp2", "bp30"}
     assert normalize_preset("БП") == "bp30"
     assert normalize_preset("none") == "none"
+    assert search_entries("", "ut11") == []
+    from onecmcp.presets import preset_ids
+
+    assert preset_ids("нет-такого") == ()
 
 
 def test_search_orders_and_sales() -> None:
