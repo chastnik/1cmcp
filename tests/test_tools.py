@@ -5,7 +5,7 @@ import httpx
 from onecmcp.client import AdapterError, OneCClient, _payload
 from onecmcp.config import Settings, load_settings
 from onecmcp.mock1c import DEMO_CATALOG, DEV_TOKEN, create_mock_app
-from onecmcp.tools import data_list_tool, health_tool, meta_describe_tool, meta_search_tool
+from onecmcp.tools import data_list_tool, health_tool, meta_describe_tool, meta_list_tool, meta_search_tool
 
 
 async def test_discovery_tools_against_mock() -> None:
@@ -48,6 +48,17 @@ async def test_list_data_and_search_errors() -> None:
         assert missing["status"] == 404
         empty = await meta_search_tool(client, "zzzz-no-match")
         assert empty["items"] == []
+        listed = await meta_list_tool(client, kind="report")
+        assert listed["items"] == []
+        denied = OneCClient(
+            Settings(onec_base_url="http://adapter", onec_token="nope"),
+            transport=transport,
+        )
+        try:
+            forbidden = await meta_list_tool(denied)
+            assert forbidden["status"] == 401
+        finally:
+            await denied.aclose()
         filtered = await client.list_data(
             "catalog",
             "DemoCounterparties",

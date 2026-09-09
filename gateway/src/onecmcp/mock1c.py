@@ -480,10 +480,12 @@ def create_mock_app() -> FastAPI:
         auth = _authenticate(request)
         if isinstance(auth, JSONResponse):
             return auth
+        if _is_hidden(name):
+            return problem(404, "not_found", "Not found", f"Нет объекта {kind}/{name}")
         if not _allowed(auth, kind, name):
             return problem(403, "forbidden", "Forbidden", "Нет доступа к объекту")
         meta = _META.get((kind, name))
-        if meta is None or _is_hidden(name):
+        if meta is None:
             return problem(404, "not_found", "Not found", f"Нет объекта {kind}/{name}")
         return JSONResponse(meta, headers=data_headers())
 
@@ -500,10 +502,12 @@ def create_mock_app() -> FastAPI:
         auth = _authenticate(request)
         if isinstance(auth, JSONResponse):
             return auth
+        if _is_hidden(name):
+            return problem(404, "not_found", "Not found", f"Нет выборки {kind}/{name}")
         if not _allowed(auth, kind, name):
             return problem(403, "forbidden", "Forbidden", "Нет доступа к объекту")
         collection = _COLLECTIONS.get((kind, name))
-        if collection is None or _is_hidden(name):
+        if collection is None:
             return problem(404, "not_found", "Not found", f"Нет выборки {kind}/{name}")
         parsed: dict[str, Any] | None = None
         if filter:
@@ -540,10 +544,12 @@ def create_mock_app() -> FastAPI:
         auth = _authenticate(request)
         if isinstance(auth, JSONResponse):
             return auth
+        if _is_hidden(name):
+            return problem(404, "not_found", "Not found", "Объект не найден")
         if not _allowed(auth, kind, name):
             return problem(403, "forbidden", "Forbidden", "Нет доступа к объекту")
         collection = _COLLECTIONS.get((kind, name))
-        if collection is None or item_id not in collection or _is_hidden(name):
+        if collection is None or item_id not in collection:
             return problem(404, "not_found", "Not found", "Объект не найден")
         return JSONResponse(
             {

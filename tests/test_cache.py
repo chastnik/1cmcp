@@ -34,7 +34,7 @@ async def test_client_reuses_meta_cache() -> None:
             self._inner = inner
 
         async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
-            if request.url.path.startswith("/v1/meta/"):
+            if "/v1/meta" in str(request.url.path):
                 calls["n"] += 1
             return await self._inner.handle_async_request(request)
 
@@ -48,8 +48,13 @@ async def test_client_reuses_meta_cache() -> None:
         second = await client.meta_describe("catalog", "DemoCounterparties")
         listed = await client.meta_list(kind="catalog")
         listed_again = await client.meta_list(kind="catalog")
+        paged = await client.meta_list(limit=1, cursor="catalog/DemoCounterparties")
+        search = await client.meta_search("контрагент")
+        search_again = await client.meta_search("контрагент")
         assert first["name"] == second["name"]
         assert listed["items"] == listed_again["items"]
-        assert calls["n"] == 1
+        assert search["items"] == search_again["items"]
+        assert paged["items"][0]["name"] == "DemoShipments"
+        assert calls["n"] == 4
     finally:
         await client.aclose()
