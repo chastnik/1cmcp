@@ -4,6 +4,17 @@
 и внешних приложений по протоколам MCP и REST: чтение данных, запись объектов,
 запуск отчётов СКД и вызов бизнес-логики под контролем прав и аудита.
 
+## С чего начать
+
+| Документ | Для кого |
+|---|---|
+| **[Установка](docs/install.md)** | внедренец, администратор 1С, DevOps: мок, расширение, публикация, шлюз, Docker, Claude Desktop |
+| **[Пользование](docs/usage.md)** | аналитик, консультант, автор сценариев: REST, MCP, фильтры, словарь, ACL, сценарий «отгрузки за август» |
+| [Чек-лист приёмки](docs/acceptance-checklist.md) | ревью |
+| [`specs/openapi.yaml`](specs/openapi.yaml) | контракт HTTP API v1 |
+
+Короткая проверка без базы 1С — раздел ниже. Полный контур с Конфигуратором, ролями и токенами — только в [установке](docs/install.md).
+
 ## Архитектура
 
 | Слой | Что это | Где живёт |
@@ -27,30 +38,47 @@
 
 ## Быстрый старт (без базы 1С)
 
+Нужны Python 3.12+ и два терминала. Подробности и Windows — в [установке](docs/install.md).
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-./scripts/ci.sh
+python -m pip install -e "gateway[dev]"
+cp .env.example .env
+```
+
+```bash
 python -m onecmcp mock1c --port 18080
+```
+
+```bash
 python -m onecmcp serve --port 8000
+```
+
+```bash
 curl -s http://127.0.0.1:8000/v1/health
+curl -s -H "Authorization: Bearer dev-token" \
+  "http://127.0.0.1:8000/v1/meta/search?q=отгрузка"
 ```
 
 `./scripts/ci.sh` повторяет GitHub Actions: установка пакета и `pytest` с порогом покрытия **90%**.
 
 Либо `docker compose up --build`. Мок отвечает на `/v1/health` без токена; `meta`/`data` требуют `Authorization: Bearer dev-token`. Фикстуры: `Catalog.DemoCounterparties` и `Document.DemoShipments` (отгрузки за август 2026). Операции будущих фаз — `501`.
 
-Подключение Claude Desktop: [`docs/claude-desktop.mcp.json`](docs/claude-desktop.mcp.json).
+Подключение Claude Desktop: [`docs/claude-desktop.mcp.json`](docs/claude-desktop.mcp.json), пошагово в [установке §6](docs/install.md#61-claude-desktop). Как задавать вопросы агенту — [пользование](docs/usage.md).
 
 ## Репозиторий
 
 | Путь | Содержание |
 |---|---|
+| `docs/install.md` | Установка расширения, публикации, шлюза, MCP |
+| `docs/usage.md` | REST, MCP, фильтры, словарь, ACL, сценарии |
 | `docs/adr/` | Архитектурные решения |
 | `docs/clean-room.md` | Регламент clean room |
 | `specs/openapi.yaml` | Контракт HTTP API v1 |
 | `extension/src/` | Выгрузка расширения в файлы (Designer, формат 2.17) |
 | `gateway/` | Шлюз Python |
+| `.env.example` | Переменные шлюза и MCP |
 | `scripts/ci.sh` | Локальный запуск CI: тесты и покрытие ≥ 90% |
 | `План разработки MCP-коннектора 1С.md` | Дорожная карта |
 
