@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from onecmcp.client import AdapterError, OneCClient
+from onecmcp.presets import merge_search_items, scenario_guide
 
 
 def mark_as_data(payload: dict[str, Any]) -> dict[str, Any]:
@@ -28,11 +29,28 @@ async def meta_list_tool(
         return _error_payload(exc)
 
 
-async def meta_search_tool(client: OneCClient, query: str, limit: int = 20) -> dict[str, Any]:
+async def meta_search_tool(
+    client: OneCClient,
+    query: str,
+    limit: int = 20,
+    preset: str | None = "auto",
+) -> dict[str, Any]:
     try:
-        return mark_as_data(await client.meta_search(query, limit=limit))
+        payload = await client.meta_search(query, limit=limit)
     except AdapterError as exc:
         return _error_payload(exc)
+    items = payload.get("items") if isinstance(payload, dict) else None
+    if isinstance(items, list):
+        payload = {
+            **payload,
+            "items": merge_search_items(items, query, preset, limit=limit),
+        }
+    return mark_as_data(payload)
+
+
+def guide_tool(question: str, preset: str | None = "auto") -> dict[str, Any]:
+    """Локальный сценарий по вопросу на естественном языке. В 1С не ходит."""
+    return scenario_guide(question, preset)
 
 
 async def meta_describe_tool(client: OneCClient, kind: str, name: str) -> dict[str, Any]:

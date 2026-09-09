@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     gateway_port: int = 8000
     tenant: str = "default"
     meta_cache_ttl_seconds: float = 60.0
+    onec_preset: str = "auto"
 
 
 def load_settings() -> Settings:

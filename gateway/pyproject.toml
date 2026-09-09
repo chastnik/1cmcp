@@ -32,6 +32,9 @@ onecmcp = "onecmcp.__main__:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+onecmcp = ["presets/data/*.json"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 pythonpath = ["src"]

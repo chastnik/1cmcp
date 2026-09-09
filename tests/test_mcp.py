@@ -14,6 +14,7 @@ def test_mcp_registers_discovery_tools() -> None:
     names = {tool.name for tool in server._tool_manager.list_tools()}
     assert {
         "health",
+        "guide",
         "meta_search",
         "meta_describe",
         "meta_list",
@@ -35,6 +36,9 @@ async def test_mcp_tools_call_adapter() -> None:
 
     found = await server._tool_manager.get_tool("meta_search").fn(query="контрагент")
     assert found["items"][0]["name"] == DEMO_CATALOG["name"]
+
+    guided = await server._tool_manager.get_tool("guide").fn(question="продажи за август")
+    assert guided["matched"] is True
 
     listed = await server._tool_manager.get_tool("meta_list").fn(kind="catalog")
     assert listed["items"][0]["name"] == DEMO_CATALOG["name"]

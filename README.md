@@ -10,6 +10,7 @@
 |---|---|
 | **[Установка](docs/install.md)** | внедренец, администратор 1С, DevOps: мок, расширение, публикация, шлюз, Docker, Claude Desktop |
 | **[Пользование](docs/usage.md)** | аналитик, консультант, автор сценариев: REST, MCP, фильтры, словарь, ACL, сценарий «отгрузки за август» |
+| **[Пресеты и навыки](docs/skills.md)** | простые вопросы к УТ/КА/ERP/БП: `guide`, словари синонимов, чем «отчёт» отличается от СКД |
 | [Чек-лист приёмки](docs/acceptance-checklist.md) | ревью |
 | [`specs/openapi.yaml`](specs/openapi.yaml) | контракт HTTP API v1 |
 
@@ -73,6 +74,8 @@ curl -s -H "Authorization: Bearer dev-token" \
 |---|---|
 | `docs/install.md` | Установка расширения, публикации, шлюза, MCP |
 | `docs/usage.md` | REST, MCP, фильтры, словарь, ACL, сценарии |
+| `docs/skills.md` | Пресеты УТ/КА/ERP/БП и инструмент `guide` |
+| `skills/1cmcp-typical/` | Навык агента: простые вопросы к типовой 1С |
 | `docs/adr/` | Архитектурные решения |
 | `docs/clean-room.md` | Регламент clean room |
 | `specs/openapi.yaml` | Контракт HTTP API v1 |

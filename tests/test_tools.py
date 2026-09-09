@@ -104,3 +104,4 @@ def test_load_settings_defaults() -> None:
     assert settings.gateway_port == 8000
     assert settings.onec_base_url.startswith("http")
     assert settings.meta_cache_ttl_seconds == 60.0
+    assert settings.onec_preset == "auto"
