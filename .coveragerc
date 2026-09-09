@@ -1,0 +1,11 @@
+[run]
+source = gateway/src/onecmcp
+omit =
+    */__pycache__/*
+
+[report]
+fail_under = 90
+show_missing = true
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:

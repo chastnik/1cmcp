@@ -13,7 +13,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install
-        run: pip install -e "gateway[dev]"
-      - name: Test
-        run: pytest -q
+      - name: Test and coverage
+        run: ./scripts/ci.sh

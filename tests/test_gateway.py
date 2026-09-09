@@ -1,7 +1,14 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+import httpx
+from fastapi.testclient import TestClient
+
 from onecmcp import __version__
-from onecmcp.mock1c import DEMO_CATALOG, DEMO_ID_ROMA
+from onecmcp.app import _openapi_path, create_app
+from onecmcp.config import Settings
+from onecmcp.mock1c import DEMO_CATALOG, DEMO_ID_ROMA, create_mock_app
 
 
 def test_gateway_liveness(gateway_client) -> None:
@@ -71,3 +78,51 @@ def test_openapi_is_served(gateway_client) -> None:
     response = gateway_client.get("/openapi.yaml")
     assert response.status_code == 200
     assert b"/v1/health" in response.content
+
+
+def test_meta_list_and_not_found_paths(gateway_client) -> None:
+    listed = gateway_client.get("/v1/meta")
+    assert listed.status_code == 200
+    assert listed.json()["items"][0]["name"] == DEMO_CATALOG["name"]
+
+    empty = gateway_client.get("/v1/meta", params={"kind": "document"})
+    assert empty.json()["items"] == []
+
+    missing_list = gateway_client.get("/v1/data/catalog/Unknown")
+    assert missing_list.status_code == 404
+
+    missing_item = gateway_client.get(
+        "/v1/data/catalog/DemoCounterparties/00000000-0000-0000-0000-000000000000"
+    )
+    assert missing_item.status_code == 404
+
+
+def test_ready_when_adapter_down() -> None:
+    class FailingTransport(httpx.AsyncBaseTransport):
+        async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectError("adapter down")
+
+    app = create_app(Settings(onec_base_url="http://adapter"), adapter_transport=FailingTransport())
+    with TestClient(app) as client:
+        response = client.get("/ready")
+    assert response.status_code == 503
+    assert response.json()["code"] == "adapter_unavailable"
+
+
+def test_create_app_default_settings() -> None:
+    app = create_app()
+    assert app.title == "1cmcp gateway"
+
+
+def test_openapi_path_fallback(monkeypatch, tmp_path) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(Path, "is_file", lambda self: False)
+    path = _openapi_path()
+    assert path.name == "openapi.yaml"
+
+
+def test_mock_app_direct_meta_limit() -> None:
+    with TestClient(create_mock_app()) as client:
+        response = client.get("/v1/meta", params={"kind": "catalog", "limit": 1})
+        assert response.status_code == 200
+        assert len(response.json()["items"]) == 1

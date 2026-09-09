@@ -30,12 +30,13 @@
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e "gateway[dev]"
-pytest -q
+./scripts/ci.sh
 python -m onecmcp mock1c --port 18080
 python -m onecmcp serve --port 8000
 curl -s http://127.0.0.1:8000/v1/health
 ```
+
+`./scripts/ci.sh` повторяет GitHub Actions: установка пакета и `pytest` с порогом покрытия **90%**.
 
 Либо `docker compose up --build`. Мок отвечает на `/v1/health`, отдаёт фикстуру `Catalog.DemoCounterparties` и `501` на операции будущих фаз.
 
@@ -50,6 +51,7 @@ curl -s http://127.0.0.1:8000/v1/health
 | `specs/openapi.yaml` | Контракт HTTP API v1 |
 | `extension/src/` | Выгрузка расширения в файлы (Designer, формат 2.17) |
 | `gateway/` | Шлюз Python |
+| `scripts/ci.sh` | Локальный запуск CI: тесты и покрытие ≥ 90% |
 | `План разработки MCP-коннектора 1С.md` | Дорожная карта |
 
 Префикс объектов метаданных — `мкп`. Совместимость расширения — 8.3.20+. Назначение — дополнение (`AddOn`), без заимствований типовых объектов.
