@@ -90,6 +90,13 @@
 		</right>
 	</object>
 	<object>
+		<name>CommonModule.мкпДействия</name>
+		<right>
+			<name>View</name>
+			<value>true</value>
+		</right>
+	</object>
+	<object>
 		<name>Catalog.мкпКлиентыИнтеграции</name>
 		<right>
 			<name>Read</name>
@@ -102,6 +109,17 @@
 	</object>
 	<object>
 		<name>Catalog.мкпИменованныеЗапросы</name>
+		<right>
+			<name>Read</name>
+			<value>true</value>
+		</right>
+		<right>
+			<name>View</name>
+			<value>true</value>
+		</right>
+	</object>
+	<object>
+		<name>Catalog.мкпДействияИнтеграции</name>
 		<right>
 			<name>Read</name>
 			<value>true</value>
@@ -154,6 +172,63 @@
 	</object>
 	<object>
 		<name>InformationRegister.мкпСостоянияЗаданий</name>
+		<right>
+			<name>Read</name>
+			<value>true</value>
+		</right>
+		<right>
+			<name>Update</name>
+			<value>true</value>
+		</right>
+		<right>
+			<name>View</name>
+			<value>true</value>
+		</right>
+		<right>
+			<name>Edit</name>
+			<value>true</value>
+		</right>
+	</object>
+	<object>
+		<name>InformationRegister.мкпКлючиИдемпотентности</name>
+		<right>
+			<name>Read</name>
+			<value>true</value>
+		</right>
+		<right>
+			<name>Update</name>
+			<value>true</value>
+		</right>
+		<right>
+			<name>View</name>
+			<value>true</value>
+		</right>
+		<right>
+			<name>Edit</name>
+			<value>true</value>
+		</right>
+	</object>
+	<object>
+		<name>InformationRegister.мкпТокеныПодтверждения</name>
+		<right>
+			<name>Read</name>
+			<value>true</value>
+		</right>
+		<right>
+			<name>Update</name>
+			<value>true</value>
+		</right>
+		<right>
+			<name>View</name>
+			<value>true</value>
+		</right>
+		<right>
+			<name>Edit</name>
+			<value>true</value>
+		</right>
+	</object>
+	<object>
+		<name>InformationRegister.мкпОперацииСессии</name>
 		<right>
 			<name>Read</name>
 			<value>true</value>

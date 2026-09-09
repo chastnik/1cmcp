@@ -28,7 +28,7 @@
 
 ### Фон
 
-`async: true` на query/report и `POST /v1/job` отвечают `202` `{job_id, status}`. `GET /v1/job/{id}` — `queued|running|succeeded|failed` и `result` либо `error`. Состояние в регистре `мкпСостоянияЗаданий` (не путать с модулем `мкпЗадания`). `operation: action` остаётся `501` до Ф3.
+`async: true` на query/report и `POST /v1/job` отвечают `202` `{job_id, status}`. `GET /v1/job/{id}` — `queued|running|succeeded|failed` и `result` либо `error`. Состояние в регистре `мкпСостоянияЗаданий` (не путать с модулем `мкпЗадания`). `operation: action` остаётся `501` до Ф3. Живой whitelist — `POST /v1/action` (ADR-0009).
 
 На моке задание выполняется сразу, GET отдаёт `succeeded` с результатом — контракт job-id соблюдён без платформенных фоновых заданий.
 
@@ -43,4 +43,4 @@
 - Агент запускает типовой отчёт с параметрами периода и получает JSON/Markdown/CSV.
 - Тяжёлый запрос уходит в фон и читается по `job_id`.
 - Произвольный запрос не может быть командой изменения.
-- Запись документов, dry-run и whitelist действий — по-прежнему Ф3 (`501`).
+- Запись документов, dry-run и whitelist действий реализованы в Ф3 (ADR-0009). `operation: action` в `/v1/job` по-прежнему `501`; живой путь — `POST /v1/action`.

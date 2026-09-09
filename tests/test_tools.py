@@ -4,9 +4,13 @@ import httpx
 
 from onecmcp.client import AdapterError, OneCClient, _payload
 from onecmcp.config import Settings, load_settings
-from onecmcp.mock1c import DEMO_CATALOG, DEV_TOKEN, create_mock_app
+from onecmcp.mock1c import DEMO_CATALOG, DEMO_ID_ROMA, DEV_TOKEN, WRITE_DEV_TOKEN, create_mock_app
 from onecmcp.tools import (
+    action_tool,
+    data_create_tool,
+    data_dry_run_tool,
     data_list_tool,
+    data_patch_tool,
     health_tool,
     job_get_tool,
     meta_describe_tool,
@@ -14,6 +18,7 @@ from onecmcp.tools import (
     meta_search_tool,
     query_tool,
     report_tool,
+    session_rollback_tool,
 )
 
 
@@ -133,5 +138,61 @@ async def test_query_report_job_tools() -> None:
         accepted = await query_tool(client, text="ВЫБРАТЬ 1", async_mode=True)
         done = await job_get_tool(client, accepted["job_id"])
         assert done["status"] == "succeeded"
+    finally:
+        await client.aclose()
+
+
+async def test_write_tools_against_mock() -> None:
+    transport = httpx.ASGITransport(app=create_mock_app())
+    client = OneCClient(
+        Settings(onec_base_url="http://adapter", onec_token=WRITE_DEV_TOKEN),
+        transport=transport,
+    )
+    try:
+        bad_item = await data_dry_run_tool(client, "catalog", "DemoCounterparties", "[")
+        assert bad_item["code"] == "bad_request"
+        item = '{"Description":"ООО Инструмент","INN":"7700000099"}'
+        dry = await data_dry_run_tool(client, "catalog", "DemoCounterparties", item)
+        created = await data_create_tool(
+            client,
+            "catalog",
+            "DemoCounterparties",
+            item,
+            dry["confirm_token"],
+            "idem-tool-1",
+            session_id="sess-tool",
+        )
+        new_id = created["ref"]["id"]
+        patched_item = f'{{"Description":"ООО Инструмент-2","INN":"7700000099","id":"{new_id}"}}'
+        patch_dry = await data_dry_run_tool(client, "catalog", "DemoCounterparties", patched_item)
+        patched = await data_patch_tool(
+            client,
+            "catalog",
+            "DemoCounterparties",
+            new_id,
+            patched_item,
+            patch_dry["confirm_token"],
+            "idem-tool-patch",
+            session_id="sess-tool",
+        )
+        assert patched["ref"]["id"] == new_id
+        unknown = await action_tool(client, "NoSuchAction", "{}")
+        assert unknown["status"] == 404
+        rolled = await session_rollback_tool(client, "sess-tool")
+        assert rolled["undone"]
+        denied = OneCClient(
+            Settings(onec_base_url="http://adapter", onec_token=DEV_TOKEN),
+            transport=transport,
+        )
+        try:
+            blocked = await data_dry_run_tool(
+                denied,
+                "catalog",
+                "DemoCounterparties",
+                '{"Description":"X"}',
+            )
+            assert blocked["status"] == 403
+        finally:
+            await denied.aclose()
     finally:
         await client.aclose()

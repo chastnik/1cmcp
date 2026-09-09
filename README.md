@@ -28,14 +28,14 @@
 
 ## Статус
 
-Фаза 2 — отчёты СКД, именованные и проверенные запросы, фоновые задания. В репозитории:
+Фаза 3 — запись объектов, dry-run с `confirm_token`, идемпотентность, whitelist действий и откат сессии. В репозитории:
 
 - ADR, регламент clean room, чек-лист приёмки
-- OpenAPI 3.1 на весь v1 (версия контракта 0.3.0)
-- расширение `мкпКоннектор`: Bearer-токен, интроспекция, чтение `meta`/`data`, `query`/`report`/`job`, журнал
-- шлюз с REST-прокси, кэшем метаданных, MCP (`guide`, discovery, `report`, `query`, `job_get`) и моком слоя A
+- OpenAPI 3.1 на весь v1 (версия контракта 0.4.0)
+- расширение `мкпКоннектор`: Bearer-токен, интроспекция, чтение, `query`/`report`/`job`, запись/`action`/откат
+- шлюз с REST-прокси, кэшем метаданных, MCP (discovery, отчёты, запись) и моком слоя A
 
-Критерий Ф2: агент запускает отчёт с параметрами периода и получает JSON; тяжёлый запрос уходит в фон (`202`) и читается по `job_id`. Стенд ERP с живой базой закрывается, когда на раннере появится платформа 1С; до этого CI проверяет XML, префикс, UUID и контракт через мок (`DemoSales`, `DemoShipmentsByPeriod`).
+Критерий Ф3: агент создаёт и проводит документ на стенде, повтор с тем же `Idempotency-Key` не плодит дубль, сессия откатывается одним вызовом. Живая база 1С на CI появится, когда на раннере будет платформа; до этого XML, префикс, UUID и контракт проверяются моком (`DemoShipments`, `DemoPostShipment`).
 
 ## Быстрый старт (без базы 1С)
 
@@ -64,7 +64,7 @@ curl -s -H "Authorization: Bearer dev-token" \
 
 `./scripts/ci.sh` повторяет GitHub Actions: установка пакета и `pytest` с порогом покрытия **90%**.
 
-Либо `docker compose up --build`. Мок отвечает на `/v1/health` без токена; `meta`/`data`/`query`/`report`/`job` требуют `Authorization: Bearer dev-token`. Фикстуры: `Catalog.DemoCounterparties`, `Document.DemoShipments`, отчёт `DemoSales`. Запись и `action` — `501`.
+Мок отвечает на `/v1/health` без токена; чтение — `Authorization: Bearer dev-token`. Запись на стенде — `dev-write-token` (скоупы `read,write` и ACL на демо-объекты). Фикстуры: `Catalog.DemoCounterparties`, `Document.DemoShipments`, отчёт `DemoSales`.
 
 Подключение Claude Desktop: [`docs/claude-desktop.mcp.json`](docs/claude-desktop.mcp.json), пошагово в [установке §6](docs/install.md#61-claude-desktop). Как задавать вопросы агенту — [пользование](docs/usage.md).
 

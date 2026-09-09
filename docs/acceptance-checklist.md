@@ -34,6 +34,9 @@
 - [ ] Пресет `guide` / `ONEC_PRESET` подсказывает типовые имена, не плодя MCP-tool на каждый документ
 - [ ] Произвольный запрос без `ВЫБРАТЬ`/`SELECT` отвечает `400 query_rejected`
 - [ ] `async: true` на query/report даёт `202` и `GET /v1/job/{id}` со статусом и результатом
+- [ ] Запись без `confirm_token` — `400 confirm_required`; повтор `Idempotency-Key` не создаёт дубль
+- [ ] `POST /v1/session/rollback` откатывает сессию агента
+- [ ] `POST /v1/action` вне whitelist — не 200
 
 ## Репозиторий
 

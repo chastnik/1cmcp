@@ -79,3 +79,22 @@ class JobStatus(BaseModel):
     status: str
     result: dict[str, Any] | None = None
     error: Problem | None = None
+
+
+class WriteResult(BaseModel):
+    ref: Ref
+    posted: bool | None = None
+    warnings: list[str] = Field(default_factory=list)
+
+
+class DryRunResult(BaseModel):
+    confirm_token: str
+    preview: dict[str, Any]
+    expires_at: str | None = None
+    fill_check: list[str] = Field(default_factory=list)
+    posting_effects: list[str] = Field(default_factory=list)
+
+
+class RollbackResult(BaseModel):
+    session_id: str
+    undone: list[Ref]

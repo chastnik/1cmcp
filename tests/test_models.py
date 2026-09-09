@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from onecmcp.models import (
+    DryRunResult,
     Health,
     JobAccepted,
     JobStatus,
@@ -11,6 +12,8 @@ from onecmcp.models import (
     QueryResult,
     Ref,
     ReportResult,
+    RollbackResult,
+    WriteResult,
 )
 
 
@@ -38,3 +41,9 @@ def test_contract_models() -> None:
     assert status.result == {"ok": True}
     rendered = ReportResult(format="csv", body="a,b\n")
     assert rendered.content_kind == "data"
+    write = WriteResult(ref=ref, posted=False)
+    assert write.warnings == []
+    dry = DryRunResult(confirm_token="dry-1", preview={"Number": "1"})
+    assert dry.fill_check == []
+    rolled = RollbackResult(session_id="s", undone=[ref])
+    assert rolled.undone[0].id == ref.id

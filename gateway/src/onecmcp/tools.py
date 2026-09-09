@@ -159,6 +159,135 @@ async def job_get_tool(client: OneCClient, job_id: str) -> dict[str, Any]:
     return payload
 
 
+async def data_dry_run_tool(
+    client: OneCClient,
+    kind: str,
+    name: str,
+    item_json: str,
+    post: bool = False,
+) -> dict[str, Any]:
+    item, error = _try_json_object(item_json, "item")
+    if error is not None:
+        return error
+    try:
+        return await client.dry_run(kind, name, item or {}, post=post)
+    except AdapterError as exc:
+        return _error_payload(exc)
+
+
+async def data_create_tool(
+    client: OneCClient,
+    kind: str,
+    name: str,
+    item_json: str,
+    confirm_token: str,
+    idempotency_key: str,
+    session_id: str | None = None,
+    post: bool = False,
+) -> dict[str, Any]:
+    item, error = _try_json_object(item_json, "item")
+    if error is not None:
+        return error
+    try:
+        _, body = await client.create_data(
+            kind,
+            name,
+            item or {},
+            confirm_token=confirm_token,
+            idempotency_key=idempotency_key,
+            session_id=session_id,
+            post=post,
+        )
+        return body
+    except AdapterError as exc:
+        return _error_payload(exc)
+
+
+async def data_patch_tool(
+    client: OneCClient,
+    kind: str,
+    name: str,
+    item_id: str,
+    item_json: str,
+    confirm_token: str,
+    idempotency_key: str,
+    session_id: str | None = None,
+) -> dict[str, Any]:
+    item, error = _try_json_object(item_json, "item")
+    if error is not None:
+        return error
+    try:
+        _, body = await client.patch_data(
+            kind,
+            name,
+            item_id,
+            item or {},
+            confirm_token=confirm_token,
+            idempotency_key=idempotency_key,
+            session_id=session_id,
+        )
+        return body
+    except AdapterError as exc:
+        return _error_payload(exc)
+
+
+async def data_post_tool(
+    client: OneCClient,
+    kind: str,
+    name: str,
+    item_id: str,
+    confirm_token: str,
+    idempotency_key: str,
+    session_id: str | None = None,
+) -> dict[str, Any]:
+    try:
+        _, body = await client.post_document(
+            kind,
+            name,
+            item_id,
+            confirm_token=confirm_token,
+            idempotency_key=idempotency_key,
+            session_id=session_id,
+        )
+        return body
+    except AdapterError as exc:
+        return _error_payload(exc)
+
+
+async def action_tool(
+    client: OneCClient,
+    name: str,
+    arguments_json: str | None = None,
+    confirm_token: str | None = None,
+    idempotency_key: str | None = None,
+    session_id: str | None = None,
+) -> dict[str, Any]:
+    arguments: dict[str, Any] = {}
+    if arguments_json:
+        parsed, error = _try_json_object(arguments_json, "arguments")
+        if error is not None:
+            return error
+        arguments = parsed or {}
+    try:
+        _, body = await client.run_action(
+            name,
+            arguments,
+            confirm_token=confirm_token,
+            idempotency_key=idempotency_key,
+            session_id=session_id,
+        )
+        return body
+    except AdapterError as exc:
+        return _error_payload(exc)
+
+
+async def session_rollback_tool(client: OneCClient, session_id: str) -> dict[str, Any]:
+    try:
+        return await client.rollback_session(session_id)
+    except AdapterError as exc:
+        return _error_payload(exc)
+
+
 def _try_json_object(raw: str, field: str) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     try:
         loaded = json.loads(raw)
