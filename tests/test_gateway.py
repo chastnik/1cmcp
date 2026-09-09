@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from onecmcp import __version__
 from onecmcp.app import _openapi_path, create_app
 from onecmcp.config import Settings
-from onecmcp.mock1c import DEMO_CATALOG, DEMO_ID_ROMA, create_mock_app
+from onecmcp.mock1c import DEMO_CATALOG, DEMO_ID_ROMA, bearer_headers, create_mock_app
 
 
 def test_gateway_liveness(gateway_client) -> None:
@@ -85,7 +85,10 @@ def test_meta_list_and_not_found_paths(gateway_client) -> None:
     assert listed.status_code == 200
     assert listed.json()["items"][0]["name"] == DEMO_CATALOG["name"]
 
-    empty = gateway_client.get("/v1/meta", params={"kind": "document"})
+    documents = gateway_client.get("/v1/meta", params={"kind": "document"})
+    assert documents.json()["items"][0]["name"] == "DemoShipments"
+
+    empty = gateway_client.get("/v1/meta", params={"kind": "report"})
     assert empty.json()["items"] == []
 
     missing_list = gateway_client.get("/v1/data/catalog/Unknown")
@@ -123,6 +126,6 @@ def test_openapi_path_fallback(monkeypatch, tmp_path) -> None:
 
 def test_mock_app_direct_meta_limit() -> None:
     with TestClient(create_mock_app()) as client:
-        response = client.get("/v1/meta", params={"kind": "catalog", "limit": 1})
+        response = client.get("/v1/meta", params={"kind": "catalog", "limit": 1}, headers=bearer_headers())
         assert response.status_code == 200
         assert len(response.json()["items"]) == 1

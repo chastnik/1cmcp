@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: 1cmcp Adapter API
-  version: 0.1.0
+  version: 0.2.0
   summary: Внутренний контракт слоя A (расширение 1С) и REST-проекция шлюза.
   description: |
     Канонический контракт v1. Слой A публикует его как HTTP-сервис с корневым URL `mcp`.
@@ -65,7 +65,7 @@ paths:
               example:
                 status: ok
                 service: 1cmcp
-                version: 0.1.0
+                version: 0.2.0
                 api: v1
                 time: "2026-09-09T17:00:00Z"
         default:
@@ -586,7 +586,7 @@ components:
           const: 1cmcp
         version:
           type: string
-          examples: ["0.1.0"]
+          examples: ["0.2.0"]
         api:
           type: string
           const: v1

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "onecmcp"
-version = "0.1.0"
+version = "0.2.0"
 description = "Протокольный шлюз 1cmcp: MCP и REST к адаптеру 1С"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -31,6 +31,9 @@ onecmcp = "onecmcp.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+onecmcp = ["presets/data/*.json"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

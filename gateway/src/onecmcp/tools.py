@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from onecmcp.client import AdapterError, OneCClient
+from onecmcp.presets import merge_search_items, scenario_guide
 
 
 def mark_as_data(payload: dict[str, Any]) -> dict[str, Any]:
@@ -16,11 +17,40 @@ async def health_tool(client: OneCClient) -> dict[str, Any]:
     return await client.health()
 
 
-async def meta_search_tool(client: OneCClient, query: str, limit: int = 20) -> dict[str, Any]:
+async def meta_list_tool(
+    client: OneCClient,
+    kind: str | None = None,
+    limit: int = 50,
+    cursor: str | None = None,
+) -> dict[str, Any]:
     try:
-        return mark_as_data(await client.meta_search(query, limit=limit))
+        return mark_as_data(await client.meta_list(kind=kind, limit=limit, cursor=cursor))
     except AdapterError as exc:
         return _error_payload(exc)
+
+
+async def meta_search_tool(
+    client: OneCClient,
+    query: str,
+    limit: int = 20,
+    preset: str | None = "auto",
+) -> dict[str, Any]:
+    try:
+        payload = await client.meta_search(query, limit=limit)
+    except AdapterError as exc:
+        return _error_payload(exc)
+    items = payload.get("items") if isinstance(payload, dict) else None
+    if isinstance(items, list):
+        payload = {
+            **payload,
+            "items": merge_search_items(items, query, preset, limit=limit),
+        }
+    return mark_as_data(payload)
+
+
+def guide_tool(question: str, preset: str | None = "auto") -> dict[str, Any]:
+    """Локальный сценарий по вопросу на естественном языке. В 1С не ходит."""
+    return scenario_guide(question, preset)
 
 
 async def meta_describe_tool(client: OneCClient, kind: str, name: str) -> dict[str, Any]:
@@ -36,11 +66,27 @@ async def data_list_tool(
     name: str,
     limit: int = 50,
     cursor: str | None = None,
+    filter_json: str | None = None,
+    fields: str | None = None,
 ) -> dict[str, Any]:
     try:
         return mark_as_data(
-            await client.list_data(kind, name, limit=limit, cursor=cursor)
+            await client.list_data(
+                kind,
+                name,
+                limit=limit,
+                cursor=cursor,
+                filter_json=filter_json,
+                fields=fields,
+            )
         )
+    except AdapterError as exc:
+        return _error_payload(exc)
+
+
+async def data_get_tool(client: OneCClient, kind: str, name: str, item_id: str) -> dict[str, Any]:
+    try:
+        return mark_as_data(await client.get_data(kind, name, item_id))
     except AdapterError as exc:
         return _error_payload(exc)
 

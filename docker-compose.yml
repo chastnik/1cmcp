@@ -14,6 +14,7 @@ services:
     command: python -m onecmcp serve --host 0.0.0.0 --port 8000
     environment:
       ONEC_BASE_URL: http://mock1c:18080
+      ONEC_TOKEN: dev-token
     ports:
       - "8000:8000"
     depends_on:

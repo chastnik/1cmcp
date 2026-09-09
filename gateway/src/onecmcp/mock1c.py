@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import time
 from datetime import datetime, timezone
 from typing import Any
 
@@ -8,8 +10,63 @@ from fastapi.responses import JSONResponse
 
 from onecmcp import __version__
 
+DEV_TOKEN = "dev-token"
+WRITE_ONLY_TOKEN = "write-only-token"
+DENIED_SHIPMENTS_TOKEN = "deny-shipments-token"
+
 DEMO_ID_ROMA = "8a996f93-36c8-4bcf-b707-f75b8b4bc5e3"
 DEMO_ID_IVAN = "caf2ddab-572b-4ea9-b84f-ca4006dcb864"
+
+SHIP_AUG_1 = "3c1a0e7a-6b21-4f3d-9c8a-1d2e3f4a5b60"
+SHIP_AUG_2 = "7d4b2f91-8e55-4a12-b6c0-9a8b7c6d5e43"
+SHIP_JULY = "e2f1d0c9-b8a7-4655-9432-1100aa99bb88"
+SHIP_IVAN = "0f9e8d7c-6b5a-4c3b-9210-fedcba987654"
+
+_CLIENTS: dict[str, dict[str, Any]] = {
+    DEV_TOKEN: {"id": "dev", "scopes": ["read"], "acl": None},
+    WRITE_ONLY_TOKEN: {"id": "writer", "scopes": ["write"], "acl": None},
+    DENIED_SHIPMENTS_TOKEN: {
+        "id": "limited",
+        "scopes": ["read"],
+        "acl": {
+            ("catalog", "DemoCounterparties"): True,
+            ("document", "DemoShipments"): False,
+        },
+    },
+}
+
+_CALL_LOG: list[dict[str, Any]] = []
+
+
+def bearer_headers(token: str = DEV_TOKEN) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+def call_log() -> list[dict[str, Any]]:
+    return list(_CALL_LOG)
+
+
+def problem(status: int, code: str, title: str, detail: str) -> JSONResponse:
+    return JSONResponse(
+        status_code=status,
+        media_type="application/problem+json",
+        content={
+            "type": f"https://1cmcp.dev/errors/{code}",
+            "title": title,
+            "status": status,
+            "detail": detail,
+            "code": code,
+        },
+    )
+
+
+def data_headers() -> dict[str, str]:
+    return {"X-1cmcp-Content-Kind": "data"}
+
+
+def _ref(kind_meta: str, item_id: str, presentation: str) -> dict[str, str]:
+    return {"ref": kind_meta, "id": item_id, "presentation": presentation}
+
 
 DEMO_CATALOG: dict[str, Any] = {
     "kind": "catalog",
@@ -45,50 +102,335 @@ DEMO_CATALOG: dict[str, Any] = {
     },
 }
 
+DEMO_DOCUMENT: dict[str, Any] = {
+    "kind": "document",
+    "name": "DemoShipments",
+    "synonym": "Демо-отгрузки",
+    "description": "Фикстура реализаций/отгрузок стенда 1cmcp. Не объект типовой конфигурации.",
+    "examples": ["отгрузка ООО Ромашка за август"],
+    "fields": [
+        {"name": "Number", "synonym": "Номер", "type": "string", "required": True},
+        {"name": "Date", "synonym": "Дата", "type": "date", "required": True},
+        {"name": "Posted", "synonym": "Проведен", "type": "boolean", "required": False},
+        {
+            "name": "Counterparty",
+            "synonym": "Контрагент",
+            "type": "ref",
+            "required": True,
+            "description": "Покупатель отгрузки",
+            "examples": ["ООО Ромашка"],
+        },
+        {
+            "name": "Amount",
+            "synonym": "Сумма",
+            "type": "number",
+            "required": True,
+            "description": "Сумма документа",
+        },
+    ],
+    "tabular_sections": [],
+    "json_schema": {
+        "type": "object",
+        "properties": {
+            "Number": {"type": "string"},
+            "Date": {"type": "string", "format": "date"},
+            "Posted": {"type": "boolean"},
+            "Counterparty": {"type": "object"},
+            "Amount": {"type": "number"},
+        },
+        "required": ["Number", "Date", "Counterparty", "Amount"],
+    },
+}
+
+HIDDEN_CONNECTOR_OBJECT: dict[str, Any] = {
+    "kind": "catalog",
+    "name": "мкпКлиентыИнтеграции",
+    "synonym": "Клиенты интеграции",
+    "description": "Служебный объект расширения, агенту не отдаётся.",
+    "examples": [],
+    "fields": [],
+    "tabular_sections": [],
+}
+
 DEMO_ITEMS: dict[str, dict[str, Any]] = {
     DEMO_ID_ROMA: {
         "id": DEMO_ID_ROMA,
-        "ref": {
-            "ref": "Catalog.DemoCounterparties",
-            "id": DEMO_ID_ROMA,
-            "presentation": "ООО Ромашка",
-        },
+        "ref": _ref("Catalog.DemoCounterparties", DEMO_ID_ROMA, "ООО Ромашка"),
         "Description": "ООО Ромашка",
         "INN": "7701234567",
     },
     DEMO_ID_IVAN: {
         "id": DEMO_ID_IVAN,
-        "ref": {
-            "ref": "Catalog.DemoCounterparties",
-            "id": DEMO_ID_IVAN,
-            "presentation": "ИП Иванов",
-        },
+        "ref": _ref("Catalog.DemoCounterparties", DEMO_ID_IVAN, "ИП Иванов"),
         "Description": "ИП Иванов",
         "INN": "5001098765",
     },
 }
 
+DEMO_SHIPMENTS: dict[str, dict[str, Any]] = {
+    SHIP_AUG_1: {
+        "id": SHIP_AUG_1,
+        "ref": _ref("Document.DemoShipments", SHIP_AUG_1, "000000001 от 05.08.2026"),
+        "Number": "000000001",
+        "Date": "2026-08-05",
+        "Posted": True,
+        "Counterparty": _ref("Catalog.DemoCounterparties", DEMO_ID_ROMA, "ООО Ромашка"),
+        "Amount": 100000.0,
+    },
+    SHIP_AUG_2: {
+        "id": SHIP_AUG_2,
+        "ref": _ref("Document.DemoShipments", SHIP_AUG_2, "000000002 от 18.08.2026"),
+        "Number": "000000002",
+        "Date": "2026-08-18",
+        "Posted": True,
+        "Counterparty": _ref("Catalog.DemoCounterparties", DEMO_ID_ROMA, "ООО Ромашка"),
+        "Amount": 50000.0,
+    },
+    SHIP_JULY: {
+        "id": SHIP_JULY,
+        "ref": _ref("Document.DemoShipments", SHIP_JULY, "000000003 от 10.07.2026"),
+        "Number": "000000003",
+        "Date": "2026-07-10",
+        "Posted": True,
+        "Counterparty": _ref("Catalog.DemoCounterparties", DEMO_ID_ROMA, "ООО Ромашка"),
+        "Amount": 9999.0,
+    },
+    SHIP_IVAN: {
+        "id": SHIP_IVAN,
+        "ref": _ref("Document.DemoShipments", SHIP_IVAN, "000000004 от 12.08.2026"),
+        "Number": "000000004",
+        "Date": "2026-08-12",
+        "Posted": True,
+        "Counterparty": _ref("Catalog.DemoCounterparties", DEMO_ID_IVAN, "ИП Иванов"),
+        "Amount": 30000.0,
+    },
+}
 
-def problem(status: int, code: str, title: str, detail: str) -> JSONResponse:
-    return JSONResponse(
-        status_code=status,
-        media_type="application/problem+json",
-        content={
-            "type": f"https://1cmcp.dev/errors/{code}",
-            "title": title,
-            "status": status,
-            "detail": detail,
-            "code": code,
-        },
-    )
+SEMANTIC_DICTIONARY: list[dict[str, str]] = [
+    {
+        "kind": "catalog",
+        "name": "DemoCounterparties",
+        "field": "",
+        "synonyms": "контрагент, покупатель, counterparty",
+        "description": "Демо-справочник контрагентов стенда",
+        "examples": "ООО Ромашка",
+    },
+    {
+        "kind": "document",
+        "name": "DemoShipments",
+        "field": "",
+        "synonyms": "отгрузка, реализация, shipment, отгрузки",
+        "description": "Демо-документы отгрузки (реализации) товаров",
+        "examples": "сколько отгрузок за август по контрагенту",
+    },
+    {
+        "kind": "document",
+        "name": "DemoShipments",
+        "field": "Counterparty",
+        "synonyms": "контрагент, покупатель",
+        "description": "Покупатель в отгрузке",
+        "examples": "ООО Ромашка",
+    },
+    {
+        "kind": "document",
+        "name": "DemoShipments",
+        "field": "Amount",
+        "synonyms": "сумма, amount",
+        "description": "Сумма отгрузки",
+        "examples": "150000",
+    },
+    {
+        "kind": "document",
+        "name": "DemoShipments",
+        "field": "Date",
+        "synonyms": "дата, период, август",
+        "description": "Дата документа отгрузки",
+        "examples": "2026-08-01",
+    },
+]
+
+_COLLECTIONS: dict[tuple[str, str], dict[str, dict[str, Any]]] = {
+    ("catalog", "DemoCounterparties"): DEMO_ITEMS,
+    ("document", "DemoShipments"): DEMO_SHIPMENTS,
+}
+
+_META: dict[tuple[str, str], dict[str, Any]] = {
+    ("catalog", "DemoCounterparties"): DEMO_CATALOG,
+    ("document", "DemoShipments"): DEMO_DOCUMENT,
+    ("catalog", "мкпКлиентыИнтеграции"): HIDDEN_CONNECTOR_OBJECT,
+}
 
 
-def data_headers() -> dict[str, str]:
-    return {"X-1cmcp-Content-Kind": "data"}
+def _summary(obj: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "kind": obj["kind"],
+        "name": obj["name"],
+        "synonym": obj.get("synonym"),
+        "description": obj.get("description"),
+        "examples": obj.get("examples", []),
+    }
+
+
+def _public_meta() -> list[dict[str, Any]]:
+    return [
+        DEMO_CATALOG,
+        DEMO_DOCUMENT,
+    ]
+
+
+def _is_hidden(name: str) -> bool:
+    return name.startswith("мкп")
+
+
+def _authenticate(request: Request) -> dict[str, Any] | JSONResponse:
+    header = request.headers.get("authorization") or request.headers.get("Authorization") or ""
+    if not header.startswith("Bearer "):
+        return problem(401, "unauthorized", "Unauthorized", "Требуется действительный Bearer-токен")
+    token = header[7:].strip()
+    client = _CLIENTS.get(token)
+    if client is None:
+        return problem(401, "unauthorized", "Unauthorized", "Требуется действительный Bearer-токен")
+    if "read" not in client["scopes"] and "*" not in client["scopes"]:
+        return problem(403, "forbidden", "Forbidden", "Недостаточно прав")
+    return client
+
+
+def _allowed(client: dict[str, Any], kind: str, name: str) -> bool:
+    if _is_hidden(name):
+        return False
+    acl = client.get("acl")
+    if acl is None:
+        return True
+    return acl.get((kind, name), False)
+
+
+def _match_filter(item: dict[str, Any], spec: Any, field: str) -> bool:
+    value = item.get(field)
+    if isinstance(spec, dict):
+        if "id" in spec and _ref_id(value) != spec["id"]:
+            return False
+        if "eq" in spec and not _equals(value, spec["eq"]):
+            return False
+        if "contains" in spec:
+            haystack = str(_scalar(value)).casefold()
+            if str(spec["contains"]).casefold() not in haystack:
+                return False
+        if "gte" in spec and _compare(value, spec["gte"]) < 0:
+            return False
+        if "lte" in spec and _compare(value, spec["lte"]) > 0:
+            return False
+        if "gt" in spec and _compare(value, spec["gt"]) <= 0:
+            return False
+        if "lt" in spec and _compare(value, spec["lt"]) >= 0:
+            return False
+        return True
+    return _equals(value, spec)
+
+
+def _ref_id(value: Any) -> str:
+    if isinstance(value, dict) and "id" in value:
+        return str(value["id"])
+    return str(value)
+
+
+def _scalar(value: Any) -> Any:
+    if isinstance(value, dict):
+        return value.get("presentation") or value.get("id") or value
+    return value
+
+
+def _equals(value: Any, expected: Any) -> bool:
+    if isinstance(value, dict):
+        return expected in {value.get("id"), value.get("presentation"), value.get("ref")}
+    return value == expected or str(value) == str(expected)
+
+
+def _compare(value: Any, bound: Any) -> int:
+    left = _scalar(value)
+    try:
+        return (float(left) > float(bound)) - (float(left) < float(bound))
+    except (TypeError, ValueError):
+        left_s, right_s = str(left), str(bound)
+        return (left_s > right_s) - (left_s < right_s)
+
+
+def _apply_fields(item: dict[str, Any], fields: str | None) -> dict[str, Any]:
+    if not fields:
+        return item
+    wanted = {part.strip() for part in fields.split(",") if part.strip()}
+    always = {"id", "ref"}
+    return {key: value for key, value in item.items() if key in wanted or key in always}
+
+
+def _paginate(
+    items: list[dict[str, Any]],
+    limit: int,
+    cursor: str | None,
+) -> tuple[list[dict[str, Any]], str | None, bool]:
+    ordered = sorted(items, key=lambda item: item["id"])
+    if cursor:
+        ordered = [item for item in ordered if item["id"] > cursor]
+    page = ordered[:limit]
+    has_more = len(ordered) > limit
+    next_cursor = page[-1]["id"] if has_more and page else None
+    return page, next_cursor, has_more
+
+
+def _search_items(query: str) -> list[dict[str, Any]]:
+    needle = query.casefold()
+    found: dict[tuple[str, str], dict[str, Any]] = {}
+    for entry in SEMANTIC_DICTIONARY:
+        haystack = " ".join(
+            [
+                entry["kind"],
+                entry["name"],
+                entry["field"],
+                entry["synonyms"],
+                entry["description"],
+                entry["examples"],
+            ]
+        ).casefold()
+        if needle not in haystack:
+            continue
+        meta = _META.get((entry["kind"], entry["name"]))
+        if meta is None or _is_hidden(meta["name"]):
+            continue
+        found[(meta["kind"], meta["name"])] = _summary(meta)
+    for meta in _public_meta():
+        haystack = " ".join(
+            [
+                meta["name"],
+                str(meta.get("synonym") or ""),
+                str(meta.get("description") or ""),
+                " ".join(meta.get("examples") or []),
+            ]
+        ).casefold()
+        if needle in haystack:
+            found[(meta["kind"], meta["name"])] = _summary(meta)
+    return list(found.values())
 
 
 def create_mock_app() -> FastAPI:
+    global _CALL_LOG
+    _CALL_LOG = []
     app = FastAPI(title="1cmcp mock adapter", version=__version__)
+    app.state.call_log = _CALL_LOG
+
+    @app.middleware("http")
+    async def audit(request: Request, call_next):  # noqa: ANN001
+        started = time.perf_counter()
+        response = await call_next(request)
+        duration_ms = int((time.perf_counter() - started) * 1000)
+        _CALL_LOG.append(
+            {
+                "method": request.method,
+                "path": request.url.path,
+                "status": response.status_code,
+                "duration_ms": duration_ms,
+            }
+        )
+        app.state.call_log = _CALL_LOG
+        return response
 
     @app.get("/v1/health")
     async def health() -> dict[str, str]:
@@ -102,82 +444,129 @@ def create_mock_app() -> FastAPI:
 
     @app.get("/v1/meta")
     async def list_meta(
+        request: Request,
         kind: str | None = None,
         limit: int = Query(default=50, ge=1, le=500),
-        cursor: str | None = None,  # noqa: ARG001
+        cursor: str | None = None,
     ) -> JSONResponse:
-        items = [DEMO_CATALOG]
-        if kind and kind != "catalog":
-            items = []
-        body = {"items": [_summary(item) for item in items[:limit]], "next_cursor": None, "has_more": False}
-        return JSONResponse(body, headers=data_headers())
-
-    @app.get("/v1/meta/search")
-    async def search_meta(
-        q: str = Query(min_length=1, max_length=200),
-        limit: int = Query(default=20, ge=1, le=500),
-    ) -> JSONResponse:
-        needle = q.casefold()
-        haystack = " ".join(
-            [
-                DEMO_CATALOG["name"],
-                DEMO_CATALOG["synonym"],
-                DEMO_CATALOG["description"],
-                *DEMO_CATALOG["examples"],
-                "контрагент",
-                "counterparty",
-            ]
-        ).casefold()
-        items = [_summary(DEMO_CATALOG)] if needle in haystack else []
+        auth = _authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        items = [_summary(item) for item in _public_meta() if kind is None or item["kind"] == kind]
+        if cursor:
+            items = [item for item in items if f"{item['kind']}/{item['name']}" > cursor]
+        page = items[:limit]
+        has_more = len(items) > limit
+        next_cursor = f"{page[-1]['kind']}/{page[-1]['name']}" if has_more and page else None
         return JSONResponse(
-            {"query": q, "items": items[:limit]},
+            {"items": page, "next_cursor": next_cursor, "has_more": has_more},
             headers=data_headers(),
         )
 
+    @app.get("/v1/meta/search")
+    async def search_meta(
+        request: Request,
+        q: str = Query(min_length=1, max_length=200),
+        limit: int = Query(default=20, ge=1, le=500),
+    ) -> JSONResponse:
+        auth = _authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        items = _search_items(q)[:limit]
+        return JSONResponse({"query": q, "items": items}, headers=data_headers())
+
     @app.get("/v1/meta/{kind}/{name}")
-    async def describe_meta(kind: str, name: str) -> JSONResponse:
-        if kind == DEMO_CATALOG["kind"] and name == DEMO_CATALOG["name"]:
-            return JSONResponse(DEMO_CATALOG, headers=data_headers())
-        return problem(404, "not_found", "Not found", f"Нет объекта {kind}/{name}")
+    async def describe_meta(kind: str, name: str, request: Request) -> JSONResponse:
+        auth = _authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        if _is_hidden(name):
+            return problem(404, "not_found", "Not found", f"Нет объекта {kind}/{name}")
+        if not _allowed(auth, kind, name):
+            return problem(403, "forbidden", "Forbidden", "Нет доступа к объекту")
+        meta = _META.get((kind, name))
+        if meta is None:
+            return problem(404, "not_found", "Not found", f"Нет объекта {kind}/{name}")
+        return JSONResponse(meta, headers=data_headers())
 
     @app.get("/v1/data/{kind}/{name}")
     async def list_data(
         kind: str,
         name: str,
+        request: Request,
         limit: int = Query(default=50, ge=1, le=500),
-        cursor: str | None = None,  # noqa: ARG001
+        cursor: str | None = None,
+        filter: str | None = None,
+        fields: str | None = None,
     ) -> JSONResponse:
-        if kind != "catalog" or name != DEMO_CATALOG["name"]:
+        auth = _authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        if _is_hidden(name):
             return problem(404, "not_found", "Not found", f"Нет выборки {kind}/{name}")
-        items = list(DEMO_ITEMS.values())[:limit]
+        if not _allowed(auth, kind, name):
+            return problem(403, "forbidden", "Forbidden", "Нет доступа к объекту")
+        collection = _COLLECTIONS.get((kind, name))
+        if collection is None:
+            return problem(404, "not_found", "Not found", f"Нет выборки {kind}/{name}")
+        parsed: dict[str, Any] | None = None
+        if filter:
+            try:
+                loaded = json.loads(filter)
+            except json.JSONDecodeError:
+                return problem(400, "bad_request", "Bad request", "Некорректный JSON фильтра")
+            if not isinstance(loaded, dict):
+                return problem(400, "bad_request", "Bad request", "Фильтр должен быть объектом")
+            parsed = loaded
+        matched = list(collection.values())
+        if parsed:
+            matched = [
+                item
+                for item in matched
+                if all(_match_filter(item, spec, field) for field, spec in parsed.items())
+            ]
+        page, next_cursor, has_more = _paginate(matched, limit, cursor)
+        projected = [_apply_fields(item, fields) for item in page]
         return JSONResponse(
             {
                 "content_kind": "data",
                 "kind": kind,
                 "name": name,
-                "items": items,
-                "next_cursor": None,
-                "has_more": False,
+                "items": projected,
+                "next_cursor": next_cursor,
+                "has_more": has_more,
             },
             headers=data_headers(),
         )
 
     @app.get("/v1/data/{kind}/{name}/{item_id}")
-    async def get_data(kind: str, name: str, item_id: str) -> JSONResponse:
-        if kind != "catalog" or name != DEMO_CATALOG["name"] or item_id not in DEMO_ITEMS:
+    async def get_data(kind: str, name: str, item_id: str, request: Request) -> JSONResponse:
+        auth = _authenticate(request)
+        if isinstance(auth, JSONResponse):
+            return auth
+        if _is_hidden(name):
+            return problem(404, "not_found", "Not found", "Объект не найден")
+        if not _allowed(auth, kind, name):
+            return problem(403, "forbidden", "Forbidden", "Нет доступа к объекту")
+        collection = _COLLECTIONS.get((kind, name))
+        if collection is None or item_id not in collection:
             return problem(404, "not_found", "Not found", "Объект не найден")
         return JSONResponse(
             {
                 "content_kind": "data",
                 "kind": kind,
                 "name": name,
-                "item": DEMO_ITEMS[item_id],
+                "item": collection[item_id],
             },
             headers=data_headers(),
         )
 
     @app.api_route("/v1/{path:path}", methods=["GET", "POST", "PATCH", "PUT", "DELETE"])
     async def not_implemented(path: str, request: Request) -> JSONResponse:  # noqa: ARG001
+        if request.url.path != "/v1/health":
+            auth = _authenticate(request)
+            if isinstance(auth, JSONResponse):
+                return auth
         return problem(
             501,
             "not_implemented",
@@ -186,13 +575,3 @@ def create_mock_app() -> FastAPI:
         )
 
     return app
-
-
-def _summary(obj: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "kind": obj["kind"],
-        "name": obj["name"],
-        "synonym": obj.get("synonym"),
-        "description": obj.get("description"),
-        "examples": obj.get("examples", []),
-    }

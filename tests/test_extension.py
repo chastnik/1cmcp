@@ -47,7 +47,15 @@ def test_configuration_is_addon_with_prefix() -> None:
     assert children == [
         ("Role", "мкпДоступКоннектора"),
         ("CommonModule", "мкпМаршрутизатор"),
+        ("CommonModule", "мкпБезопасность"),
+        ("CommonModule", "мкпСериализация"),
+        ("CommonModule", "мкпИнтроспекция"),
+        ("CommonModule", "мкпДанные"),
         ("HTTPService", "мкпAPI"),
+        ("Catalog", "мкпКлиентыИнтеграции"),
+        ("InformationRegister", "мкпПравилаДоступа"),
+        ("InformationRegister", "мкпСемантическийСловарь"),
+        ("InformationRegister", "мкпЖурналВызовов"),
     ]
 
 
@@ -73,7 +81,15 @@ def test_native_object_names_use_prefix() -> None:
         "мкпКоннектор",
         "мкпДоступКоннектора",
         "мкпМаршрутизатор",
+        "мкпБезопасность",
+        "мкпСериализация",
+        "мкпИнтроспекция",
+        "мкпДанные",
         "мкпAPI",
+        "мкпКлиентыИнтеграции",
+        "мкпПравилаДоступа",
+        "мкпСемантическийСловарь",
+        "мкпЖурналВызовов",
     }
     assert object_names <= set(names)
     for name in object_names:
@@ -101,6 +117,11 @@ def test_http_service_health_and_session_reuse() -> None:
         for node in tree.findall(f"{MD}HTTPService/{MD}ChildObjects/{MD}URLTemplate")
     }
     assert "/v1/health" in templates
+    assert "/v1/meta" in templates
+    assert "/v1/meta/search" in templates
+    assert "/v1/meta/{kind}/{name}" in templates
+    assert "/v1/data/{kind}/{name}" in templates
+    assert "/v1/data/{kind}/{name}/{id}" in templates
     handlers = [
         node.findtext(f"{MD}Properties/{MD}Handler")
         for node in tree.findall(f".//{MD}Method")
@@ -122,6 +143,11 @@ def test_router_implements_health_contract() -> None:
         '"v1"',
         "application/problem+json",
         "/v1/health",
+        "/v1/meta",
+        "/v1/data",
+        "мкпБезопасность",
+        "мкпИнтроспекция",
+        "мкпДанные",
     ):
         assert needle in module
 
@@ -136,3 +162,35 @@ def test_uuids_are_unique() -> None:
         uuids.extend(object_id_re.findall(text))
     assert uuids
     assert len(uuids) == len(set(uuids))
+
+
+def test_configuration_version_and_phase1_rights() -> None:
+    tree = ET.parse(SRC / "Configuration.xml")
+    props = tree.find(f"{MD}Configuration/{MD}Properties")
+    assert props.findtext(f"{MD}Version") == "0.2.0"
+    rights = (SRC / "Roles" / "мкпДоступКоннектора" / "Ext" / "Rights.xml").read_text(
+        encoding="utf-8"
+    )
+    for needle in (
+        "CommonModule.мкпБезопасность",
+        "Catalog.мкпКлиентыИнтеграции",
+        "InformationRegister.мкпЖурналВызовов",
+        "InformationRegister.мкпСемантическийСловарь",
+        "InformationRegister.мкпПравилаДоступа",
+    ):
+        assert needle in rights
+
+
+def test_phase1_modules_export_expected_entrypoints() -> None:
+    security = (SRC / "CommonModules" / "мкпБезопасность" / "Ext" / "Module.bsl").read_text(
+        encoding="utf-8"
+    )
+    assert "Функция КлиентПоЗапросу" in security
+    assert "Функция ЭтоСлужебныйОбъект" in security
+    data = (SRC / "CommonModules" / "мкпДанные" / "Ext" / "Module.bsl").read_text(encoding="utf-8")
+    assert "Функция Список" in data
+    assert "Функция ПолучитьПоИд" in data
+    meta = (SRC / "CommonModules" / "мкпИнтроспекция" / "Ext" / "Module.bsl").read_text(
+        encoding="utf-8"
+    )
+    assert "Функция ПоискСемантики" in meta
