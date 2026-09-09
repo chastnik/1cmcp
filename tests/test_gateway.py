@@ -65,8 +65,8 @@ def test_meta_describe_and_data_roundtrip(gateway_client) -> None:
     assert envelope["item"]["ref"]["ref"] == "Catalog.DemoCounterparties"
 
 
-def test_future_operations_return_501_problem(gateway_client) -> None:
-    response = gateway_client.post("/v1/action", json={"name": "DemoAction"})
+def test_unknown_v1_path_returns_501_problem(gateway_client) -> None:
+    response = gateway_client.post("/v1/future-phase", json={"name": "DemoAction"})
     assert response.status_code == 501
     problem = response.json()
     assert problem["code"] == "not_implemented"

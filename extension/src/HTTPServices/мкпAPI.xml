@@ -148,6 +148,19 @@
 							<Handler>DataCollectionGET</Handler>
 						</Properties>
 					</Method>
+					<Method uuid="082effeb-239d-4870-bee5-7b678989e908">
+						<Properties>
+							<Name>POST</Name>
+							<Synonym>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>POST</v8:content>
+								</v8:item>
+							</Synonym>
+							<HTTPMethod>POST</HTTPMethod>
+							<Handler>DataCollectionPOST</Handler>
+						</Properties>
+					</Method>
 				</ChildObjects>
 			</URLTemplate>
 			<URLTemplate uuid="cc51209d-41b6-4298-a640-b2d5b203461c">
@@ -173,6 +186,19 @@
 							</Synonym>
 							<HTTPMethod>GET</HTTPMethod>
 							<Handler>DataItemGET</Handler>
+						</Properties>
+					</Method>
+					<Method uuid="d54e4605-ffc5-46be-87b3-c7291eb00d01">
+						<Properties>
+							<Name>PATCH</Name>
+							<Synonym>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>PATCH</v8:content>
+								</v8:item>
+							</Synonym>
+							<HTTPMethod>PATCH</HTTPMethod>
+							<Handler>DataItemPATCH</Handler>
 						</Properties>
 					</Method>
 				</ChildObjects>
@@ -281,6 +307,114 @@
 			</Synonym>
 							<HTTPMethod>GET</HTTPMethod>
 							<Handler>JobGET</Handler>
+						</Properties>
+					</Method>
+				</ChildObjects>
+			</URLTemplate>
+			<URLTemplate uuid="ba9625a7-838d-4c60-9cc1-f851c587fe54">
+				<Properties>
+					<Name>DataDryRun</Name>
+					<Synonym>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Data dry-run</v8:content>
+						</v8:item>
+					</Synonym>
+					<Template>/v1/data/{kind}/{name}/dry-run</Template>
+				</Properties>
+				<ChildObjects>
+					<Method uuid="0bbfdd1b-2004-4e78-b396-efbd0111d58a">
+						<Properties>
+							<Name>POST</Name>
+							<Synonym>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>POST</v8:content>
+								</v8:item>
+							</Synonym>
+							<HTTPMethod>POST</HTTPMethod>
+							<Handler>DataDryRunPOST</Handler>
+						</Properties>
+					</Method>
+				</ChildObjects>
+			</URLTemplate>
+			<URLTemplate uuid="2f3c5d0a-aff2-4206-ad25-3cce1fafe256">
+				<Properties>
+					<Name>DataPost</Name>
+					<Synonym>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Data post</v8:content>
+						</v8:item>
+					</Synonym>
+					<Template>/v1/data/{kind}/{name}/{id}/post</Template>
+				</Properties>
+				<ChildObjects>
+					<Method uuid="a1ea4e1d-c4a9-4117-aec0-29956a8d5277">
+						<Properties>
+							<Name>POST</Name>
+							<Synonym>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>POST</v8:content>
+								</v8:item>
+							</Synonym>
+							<HTTPMethod>POST</HTTPMethod>
+							<Handler>DataPostPOST</Handler>
+						</Properties>
+					</Method>
+				</ChildObjects>
+			</URLTemplate>
+			<URLTemplate uuid="208608fa-8bdd-493a-9697-c0994b6d37f8">
+				<Properties>
+					<Name>Action</Name>
+					<Synonym>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Action</v8:content>
+						</v8:item>
+					</Synonym>
+					<Template>/v1/action</Template>
+				</Properties>
+				<ChildObjects>
+					<Method uuid="6c4edbae-a382-42bd-afdf-d4de134af480">
+						<Properties>
+							<Name>POST</Name>
+							<Synonym>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>POST</v8:content>
+								</v8:item>
+							</Synonym>
+							<HTTPMethod>POST</HTTPMethod>
+							<Handler>ActionPOST</Handler>
+						</Properties>
+					</Method>
+				</ChildObjects>
+			</URLTemplate>
+			<URLTemplate uuid="2fe071bc-120f-4d99-9bf4-8bc3a0a6db9a">
+				<Properties>
+					<Name>SessionRollback</Name>
+					<Synonym>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Session rollback</v8:content>
+						</v8:item>
+					</Synonym>
+					<Template>/v1/session/rollback</Template>
+				</Properties>
+				<ChildObjects>
+					<Method uuid="63ca3b53-44d1-4a76-961d-c875290fc894">
+						<Properties>
+							<Name>POST</Name>
+							<Synonym>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>POST</v8:content>
+								</v8:item>
+							</Synonym>
+							<HTTPMethod>POST</HTTPMethod>
+							<Handler>SessionRollbackPOST</Handler>
 						</Properties>
 					</Method>
 				</ChildObjects>

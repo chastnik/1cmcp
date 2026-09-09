@@ -54,13 +54,18 @@ def test_configuration_is_addon_with_prefix() -> None:
         ("CommonModule", "мкпЗапросы"),
         ("CommonModule", "мкпОтчёты"),
         ("CommonModule", "мкпЗадания"),
+        ("CommonModule", "мкпДействия"),
         ("HTTPService", "мкпAPI"),
         ("Catalog", "мкпКлиентыИнтеграции"),
         ("Catalog", "мкпИменованныеЗапросы"),
+        ("Catalog", "мкпДействияИнтеграции"),
         ("InformationRegister", "мкпПравилаДоступа"),
         ("InformationRegister", "мкпСемантическийСловарь"),
         ("InformationRegister", "мкпЖурналВызовов"),
         ("InformationRegister", "мкпСостоянияЗаданий"),
+        ("InformationRegister", "мкпКлючиИдемпотентности"),
+        ("InformationRegister", "мкпТокеныПодтверждения"),
+        ("InformationRegister", "мкпОперацииСессии"),
     ]
 
 
@@ -93,13 +98,18 @@ def test_native_object_names_use_prefix() -> None:
         "мкпЗапросы",
         "мкпОтчёты",
         "мкпЗадания",
+        "мкпДействия",
         "мкпAPI",
         "мкпКлиентыИнтеграции",
         "мкпИменованныеЗапросы",
+        "мкпДействияИнтеграции",
         "мкпПравилаДоступа",
         "мкпСемантическийСловарь",
         "мкпЖурналВызовов",
         "мкпСостоянияЗаданий",
+        "мкпКлючиИдемпотентности",
+        "мкпТокеныПодтверждения",
+        "мкпОперацииСессии",
     }
     assert object_names <= set(names)
     for name in object_names:
@@ -136,6 +146,10 @@ def test_http_service_health_and_session_reuse() -> None:
     assert "/v1/report" in templates
     assert "/v1/job" in templates
     assert "/v1/job/{id}" in templates
+    assert "/v1/data/{kind}/{name}/dry-run" in templates
+    assert "/v1/data/{kind}/{name}/{id}/post" in templates
+    assert "/v1/action" in templates
+    assert "/v1/session/rollback" in templates
     handlers = [
         node.findtext(f"{MD}Properties/{MD}Handler")
         for node in tree.findall(f".//{MD}Method")
@@ -168,6 +182,10 @@ def test_router_implements_health_contract() -> None:
         "мкпЗапросы",
         "мкпОтчёты",
         "мкпЗадания",
+        "мкпДействия",
+        "/v1/action",
+        "/v1/session/rollback",
+        "dry-run",
     ):
         assert needle in module
 
@@ -184,10 +202,10 @@ def test_uuids_are_unique() -> None:
     assert len(uuids) == len(set(uuids))
 
 
-def test_configuration_version_and_phase2_rights() -> None:
+def test_configuration_version_and_phase3_rights() -> None:
     tree = ET.parse(SRC / "Configuration.xml")
     props = tree.find(f"{MD}Configuration/{MD}Properties")
-    assert props.findtext(f"{MD}Version") == "0.3.0"
+    assert props.findtext(f"{MD}Version") == "0.4.0"
     rights = (SRC / "Roles" / "мкпДоступКоннектора" / "Ext" / "Rights.xml").read_text(
         encoding="utf-8"
     )
@@ -196,12 +214,17 @@ def test_configuration_version_and_phase2_rights() -> None:
         "CommonModule.мкпЗапросы",
         "CommonModule.мкпОтчёты",
         "CommonModule.мкпЗадания",
+        "CommonModule.мкпДействия",
         "Catalog.мкпКлиентыИнтеграции",
         "Catalog.мкпИменованныеЗапросы",
+        "Catalog.мкпДействияИнтеграции",
         "InformationRegister.мкпЖурналВызовов",
         "InformationRegister.мкпСемантическийСловарь",
         "InformationRegister.мкпПравилаДоступа",
         "InformationRegister.мкпСостоянияЗаданий",
+        "InformationRegister.мкпКлючиИдемпотентности",
+        "InformationRegister.мкпТокеныПодтверждения",
+        "InformationRegister.мкпОперацииСессии",
     ):
         assert needle in rights
 
@@ -215,6 +238,10 @@ def test_phase1_modules_export_expected_entrypoints() -> None:
     data = (SRC / "CommonModules" / "мкпДанные" / "Ext" / "Module.bsl").read_text(encoding="utf-8")
     assert "Функция Список" in data
     assert "Функция ПолучитьПоИд" in data
+    assert "Функция Предпросмотр" in data
+    assert "Функция Создать" in data
+    assert "Функция Провести" in data
+    assert "Функция ОткатитьСессию" in data
     meta = (SRC / "CommonModules" / "мкпИнтроспекция" / "Ext" / "Module.bsl").read_text(
         encoding="utf-8"
     )
@@ -228,3 +255,5 @@ def test_phase1_modules_export_expected_entrypoints() -> None:
     jobs = (SRC / "CommonModules" / "мкпЗадания" / "Ext" / "Module.bsl").read_text(encoding="utf-8")
     assert "Функция Поставить" in jobs
     assert "Функция Получить" in jobs
+    actions = (SRC / "CommonModules" / "мкпДействия" / "Ext" / "Module.bsl").read_text(encoding="utf-8")
+    assert "Функция ВыполнитьПоТелу" in actions

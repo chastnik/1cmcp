@@ -63,8 +63,26 @@ class OneCClient:
             raise AdapterError(response.status_code, _payload(response), dict(response.headers))
         return response.json()
 
-    async def post_json(self, path: str, json: Any | None = None) -> tuple[int, Any]:
-        response = await self.request("POST", path, json=json)
+    async def post_json(
+        self,
+        path: str,
+        json: Any | None = None,
+        *,
+        headers: dict[str, str] | None = None,
+    ) -> tuple[int, Any]:
+        response = await self.request("POST", path, json=json, headers=headers)
+        if response.status_code >= 400:
+            raise AdapterError(response.status_code, _payload(response), dict(response.headers))
+        return response.status_code, response.json()
+
+    async def patch_json(
+        self,
+        path: str,
+        json: Any | None = None,
+        *,
+        headers: dict[str, str] | None = None,
+    ) -> tuple[int, Any]:
+        response = await self.request("PATCH", path, json=json, headers=headers)
         if response.status_code >= 400:
             raise AdapterError(response.status_code, _payload(response), dict(response.headers))
         return response.status_code, response.json()
@@ -140,6 +158,101 @@ class OneCClient:
 
     async def get_job(self, job_id: str) -> dict[str, Any]:
         return await self.get_json(f"/v1/job/{job_id}")
+
+    async def dry_run(
+        self,
+        kind: str,
+        name: str,
+        item: dict[str, Any],
+        *,
+        post: bool = False,
+    ) -> dict[str, Any]:
+        _, body = await self.post_json(
+            f"/v1/data/{kind}/{name}/dry-run",
+            json={"item": item, "post": post},
+        )
+        return body
+
+    async def create_data(
+        self,
+        kind: str,
+        name: str,
+        item: dict[str, Any],
+        *,
+        confirm_token: str,
+        idempotency_key: str,
+        session_id: str | None = None,
+        post: bool = False,
+    ) -> tuple[int, dict[str, Any]]:
+        return await self.post_json(
+            f"/v1/data/{kind}/{name}",
+            json={"item": item, "confirm_token": confirm_token, "post": post},
+            headers=_write_headers(idempotency_key, session_id),
+        )
+
+    async def patch_data(
+        self,
+        kind: str,
+        name: str,
+        item_id: str,
+        item: dict[str, Any],
+        *,
+        confirm_token: str,
+        idempotency_key: str,
+        session_id: str | None = None,
+    ) -> tuple[int, dict[str, Any]]:
+        return await self.patch_json(
+            f"/v1/data/{kind}/{name}/{item_id}",
+            json={"item": item, "confirm_token": confirm_token},
+            headers=_write_headers(idempotency_key, session_id),
+        )
+
+    async def post_document(
+        self,
+        kind: str,
+        name: str,
+        item_id: str,
+        *,
+        confirm_token: str,
+        idempotency_key: str,
+        session_id: str | None = None,
+    ) -> tuple[int, dict[str, Any]]:
+        return await self.post_json(
+            f"/v1/data/{kind}/{name}/{item_id}/post",
+            json={"confirm_token": confirm_token},
+            headers=_write_headers(idempotency_key, session_id),
+        )
+
+    async def run_action(
+        self,
+        name: str,
+        arguments: dict[str, Any] | None = None,
+        *,
+        confirm_token: str | None = None,
+        idempotency_key: str | None = None,
+        session_id: str | None = None,
+    ) -> tuple[int, dict[str, Any]]:
+        payload: dict[str, Any] = {"name": name, "arguments": arguments or {}}
+        if confirm_token:
+            payload["confirm_token"] = confirm_token
+        return await self.post_json(
+            "/v1/action",
+            json=payload,
+            headers=_write_headers(idempotency_key, session_id),
+        )
+
+    async def rollback_session(self, session_id: str) -> dict[str, Any]:
+        _, body = await self.post_json("/v1/session/rollback", json={"session_id": session_id})
+        return body
+
+
+def _write_headers(idempotency_key: str | None, session_id: str | None) -> dict[str, str] | None:
+    headers: dict[str, str] = {}
+    if idempotency_key:
+        headers["Idempotency-Key"] = idempotency_key
+    if session_id:
+        headers["X-Session-Id"] = session_id
+    return headers or None
 
 
 def _payload(response: httpx.Response) -> Any:

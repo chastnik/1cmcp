@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import time
 import uuid
@@ -11,10 +12,12 @@ from fastapi.responses import JSONResponse
 
 from onecmcp import __version__
 from onecmcp.query_validator import QueryRejected, resolve_limit, validate_query_text
+from onecmcp.writes import WriteEngine, fill_check, posting_check
 
 DEV_TOKEN = "dev-token"
 WRITE_ONLY_TOKEN = "write-only-token"
 DENIED_SHIPMENTS_TOKEN = "deny-shipments-token"
+WRITE_DEV_TOKEN = "dev-write-token"
 
 DEMO_ID_ROMA = "8a996f93-36c8-4bcf-b707-f75b8b4bc5e3"
 DEMO_ID_IVAN = "caf2ddab-572b-4ea9-b84f-ca4006dcb864"
@@ -27,6 +30,14 @@ SHIP_IVAN = "0f9e8d7c-6b5a-4c3b-9210-fedcba987654"
 _CLIENTS: dict[str, dict[str, Any]] = {
     DEV_TOKEN: {"id": "dev", "scopes": ["read"], "acl": None},
     WRITE_ONLY_TOKEN: {"id": "writer", "scopes": ["write"], "acl": None},
+    WRITE_DEV_TOKEN: {
+        "id": "dev-writer",
+        "scopes": ["read", "write"],
+        "acl": {
+            ("catalog", "DemoCounterparties"): True,
+            ("document", "DemoShipments"): True,
+        },
+    },
     DENIED_SHIPMENTS_TOKEN: {
         "id": "limited",
         "scopes": ["read"],
@@ -64,6 +75,14 @@ def problem(status: int, code: str, title: str, detail: str) -> JSONResponse:
 
 def data_headers() -> dict[str, str]:
     return {"X-1cmcp-Content-Kind": "data"}
+
+
+def _session_id(request: Request) -> str | None:
+    return request.headers.get("x-session-id") or request.headers.get("X-Session-Id")
+
+
+def _idempotency_key(request: Request) -> str | None:
+    return request.headers.get("idempotency-key") or request.headers.get("Idempotency-Key")
 
 
 def _ref(kind_meta: str, item_id: str, presentation: str) -> dict[str, str]:
@@ -293,6 +312,9 @@ _COLLECTIONS: dict[tuple[str, str], dict[str, dict[str, Any]]] = {
     ("document", "DemoShipments"): DEMO_SHIPMENTS,
 }
 
+_ITEMS_SEED = copy.deepcopy(DEMO_ITEMS)
+_SHIPMENTS_SEED = copy.deepcopy(DEMO_SHIPMENTS)
+
 _META: dict[tuple[str, str], dict[str, Any]] = {
     ("catalog", "DemoCounterparties"): DEMO_CATALOG,
     ("document", "DemoShipments"): DEMO_DOCUMENT,
@@ -337,7 +359,7 @@ def _is_hidden(name: str) -> bool:
     return name.startswith("мкп")
 
 
-def _authenticate(request: Request) -> dict[str, Any] | JSONResponse:
+def _authenticate(request: Request, *, scope: str = "read") -> dict[str, Any] | JSONResponse:
     header = request.headers.get("authorization") or request.headers.get("Authorization") or ""
     if not header.startswith("Bearer "):
         return problem(401, "unauthorized", "Unauthorized", "Требуется действительный Bearer-токен")
@@ -345,18 +367,19 @@ def _authenticate(request: Request) -> dict[str, Any] | JSONResponse:
     client = _CLIENTS.get(token)
     if client is None:
         return problem(401, "unauthorized", "Unauthorized", "Требуется действительный Bearer-токен")
-    if "read" not in client["scopes"] and "*" not in client["scopes"]:
+    scopes = client["scopes"]
+    if "*" not in scopes and scope not in scopes:
         return problem(403, "forbidden", "Forbidden", "Недостаточно прав")
     return client
 
 
-def _allowed(client: dict[str, Any], kind: str, name: str) -> bool:
+def _allowed(client: dict[str, Any], kind: str, name: str, operation: str = "read") -> bool:
     if _is_hidden(name):
         return False
     acl = client.get("acl")
     if acl is None:
-        return True
-    return acl.get((kind, name), False)
+        return operation == "read"
+    return bool(acl.get((kind, name), False))
 
 
 def _match_filter(item: dict[str, Any], spec: Any, field: str) -> bool:
@@ -631,10 +654,22 @@ def _store_job(operation: str, result: dict[str, Any]) -> dict[str, Any]:
     return {"job_id": job_id, "status": "queued"}
 
 
+_WRITE = WriteEngine(_COLLECTIONS)
+
+
+def _reset_data() -> None:
+    DEMO_ITEMS.clear()
+    DEMO_ITEMS.update(copy.deepcopy(_ITEMS_SEED))
+    DEMO_SHIPMENTS.clear()
+    DEMO_SHIPMENTS.update(copy.deepcopy(_SHIPMENTS_SEED))
+    _WRITE.reset(_COLLECTIONS)
+
+
 def create_mock_app() -> FastAPI:
     global _CALL_LOG, _JOBS
     _CALL_LOG = []
     _JOBS = {}
+    _reset_data()
     app = FastAPI(title="1cmcp mock adapter", version=__version__)
     app.state.call_log = _CALL_LOG
 
@@ -864,6 +899,256 @@ def create_mock_app() -> FastAPI:
         if record is None:
             return problem(404, "not_found", "Not found", "Задание не найдено")
         return JSONResponse(record)
+
+    def _guard_write(request: Request, kind: str, name: str, operation: str = "write"):
+        auth = _authenticate(request, scope="write")
+        if isinstance(auth, JSONResponse):
+            return auth
+        if _is_hidden(name):
+            return problem(404, "not_found", "Not found", f"Нет объекта {kind}/{name}")
+        if not _allowed(auth, kind, name, operation):
+            return problem(403, "forbidden", "Forbidden", "Нет доступа на запись")
+        return auth
+
+    def _write_result(item: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "ref": item["ref"],
+            "posted": bool(item.get("Posted")),
+            "warnings": [],
+        }
+
+    @app.post("/v1/data/{kind}/{name}/dry-run")
+    async def dry_run_data(kind: str, name: str, request: Request) -> JSONResponse:
+        auth = _guard_write(request, kind, name)
+        if isinstance(auth, JSONResponse):
+            return auth
+        payload = await _json_payload(request)
+        if isinstance(payload, JSONResponse):
+            return payload
+        item = payload.get("item")
+        if not isinstance(item, dict):
+            return problem(400, "bad_request", "Bad request", "Нужно поле item")
+        if _COLLECTIONS.get((kind, name)) is None:
+            return problem(404, "not_found", "Not found", f"Нет выборки {kind}/{name}")
+        return JSONResponse(_WRITE.dry_run(kind, name, item, post=bool(payload.get("post"))))
+
+    @app.post("/v1/data/{kind}/{name}")
+    async def create_data(kind: str, name: str, request: Request) -> JSONResponse:
+        auth = _guard_write(request, kind, name)
+        if isinstance(auth, JSONResponse):
+            return auth
+        key = _idempotency_key(request)
+        if not key or not 8 <= len(key) <= 128:
+            return problem(400, "bad_request", "Bad request", "Нужен заголовок Idempotency-Key (8–128 символов)")
+        payload = await _json_payload(request)
+        if isinstance(payload, JSONResponse):
+            return payload
+        item = payload.get("item")
+        if not isinstance(item, dict):
+            return problem(400, "bad_request", "Bad request", "Нужно поле item")
+        fingerprint = json.dumps(item, ensure_ascii=False, sort_keys=True, default=str)
+        replayed = _WRITE.replay(auth["id"], key, fingerprint)
+        if replayed == "conflict":
+            return problem(409, "idempotency_conflict", "Conflict", "Idempotency-Key уже использован с другим телом")
+        if isinstance(replayed, dict):
+            return JSONResponse(replayed, status_code=201)
+        token = payload.get("confirm_token")
+        if not token:
+            return problem(
+                400,
+                "confirm_required",
+                "Confirmation required",
+                "Сначала dry-run, затем запись с confirm_token",
+            )
+        consumed = _WRITE.consume_token(str(token), kind, name, item)
+        if isinstance(consumed, str):
+            return problem(400, "confirm_required", "Confirmation required", consumed)
+        stored = consumed["item"]
+        issues = fill_check(kind, name, stored)
+        if issues:
+            return problem(422, "fill_check_failed", "Fill check failed", "; ".join(issues))
+        collection = _COLLECTIONS.get((kind, name))
+        if collection is None:
+            return problem(404, "not_found", "Not found", f"Нет выборки {kind}/{name}")
+        collection[stored["id"]] = stored
+        session = _session_id(request)
+        _WRITE.track(session, {"op": "create", "kind": kind, "name": name, "id": stored["id"]})
+        want_post = bool(payload.get("post") or consumed.get("post"))
+        if want_post:
+            errors = posting_check(stored)
+            if errors:
+                result = {**_write_result(stored), "warnings": errors}
+            else:
+                previous_posted = bool(stored.get("Posted"))
+                stored["Posted"] = True
+                _WRITE.track(
+                    session,
+                    {
+                        "op": "post",
+                        "kind": kind,
+                        "name": name,
+                        "id": stored["id"],
+                        "previous_posted": previous_posted,
+                    },
+                )
+                result = _write_result(stored)
+        else:
+            result = _write_result(stored)
+        _WRITE.remember(auth["id"], key, result, fingerprint)
+        return JSONResponse(result, status_code=201)
+
+    @app.patch("/v1/data/{kind}/{name}/{item_id}")
+    async def patch_data(kind: str, name: str, item_id: str, request: Request) -> JSONResponse:
+        auth = _guard_write(request, kind, name)
+        if isinstance(auth, JSONResponse):
+            return auth
+        key = _idempotency_key(request)
+        if not key or not 8 <= len(key) <= 128:
+            return problem(400, "bad_request", "Bad request", "Нужен заголовок Idempotency-Key (8–128 символов)")
+        payload = await _json_payload(request)
+        if isinstance(payload, JSONResponse):
+            return payload
+        patch = payload.get("item")
+        if not isinstance(patch, dict):
+            return problem(400, "bad_request", "Bad request", "Нужно поле item")
+        fingerprint = json.dumps({"id": item_id, "item": patch}, ensure_ascii=False, sort_keys=True, default=str)
+        replayed = _WRITE.replay(auth["id"], key, fingerprint)
+        if replayed == "conflict":
+            return problem(409, "idempotency_conflict", "Conflict", "Idempotency-Key уже использован с другим телом")
+        if isinstance(replayed, dict):
+            return JSONResponse(replayed)
+        collection = _COLLECTIONS.get((kind, name))
+        if collection is None or item_id not in collection:
+            return problem(404, "not_found", "Not found", "Объект не найден")
+        token = payload.get("confirm_token")
+        if not token:
+            return problem(
+                400,
+                "confirm_required",
+                "Confirmation required",
+                "Сначала dry-run, затем запись с confirm_token",
+            )
+        merged = {**collection[item_id], **patch}
+        consumed = _WRITE.consume_token(str(token), kind, name, merged)
+        if isinstance(consumed, str):
+            return problem(400, "confirm_required", "Confirmation required", consumed)
+        previous = copy.deepcopy(collection[item_id])
+        collection[item_id] = consumed["item"]
+        collection[item_id]["id"] = item_id
+        result = _write_result(collection[item_id])
+        _WRITE.track(
+            _session_id(request),
+            {"op": "patch", "kind": kind, "name": name, "id": item_id, "previous": previous},
+        )
+        _WRITE.remember(auth["id"], key, result, fingerprint)
+        return JSONResponse(result)
+
+    @app.post("/v1/data/{kind}/{name}/{item_id}/post")
+    async def post_document(kind: str, name: str, item_id: str, request: Request) -> JSONResponse:
+        auth = _guard_write(request, kind, name, operation="write")
+        if isinstance(auth, JSONResponse):
+            return auth
+        key = _idempotency_key(request)
+        if not key or not 8 <= len(key) <= 128:
+            return problem(400, "bad_request", "Bad request", "Нужен заголовок Idempotency-Key (8–128 символов)")
+        fingerprint = json.dumps({"id": item_id, "op": "post"}, ensure_ascii=False, sort_keys=True)
+        replayed = _WRITE.replay(auth["id"], key, fingerprint)
+        if replayed == "conflict":
+            return problem(409, "idempotency_conflict", "Conflict", "Idempotency-Key уже использован с другим телом")
+        if isinstance(replayed, dict):
+            return JSONResponse(replayed)
+        if kind != "document":
+            return problem(400, "bad_request", "Bad request", "Проводить можно только документы")
+        collection = _COLLECTIONS.get((kind, name))
+        if collection is None or item_id not in collection:
+            return problem(404, "not_found", "Not found", "Объект не найден")
+        payload = await _json_payload(request)
+        if isinstance(payload, JSONResponse):
+            return payload
+        token = payload.get("confirm_token")
+        if not token:
+            return problem(
+                400,
+                "confirm_required",
+                "Confirmation required",
+                "Сначала dry-run с post=true, затем проведение с confirm_token",
+            )
+        consumed = _WRITE.consume_for_target(str(token), kind, name, item_id)
+        if isinstance(consumed, str):
+            return problem(400, "confirm_required", "Confirmation required", consumed)
+        errors = posting_check(collection[item_id])
+        if errors:
+            return problem(422, "posting_failed", "Posting failed", "; ".join(errors))
+        previous_posted = bool(collection[item_id].get("Posted"))
+        collection[item_id]["Posted"] = True
+        result = _write_result(collection[item_id])
+        _WRITE.track(
+            _session_id(request),
+            {
+                "op": "post",
+                "kind": kind,
+                "name": name,
+                "id": item_id,
+                "previous_posted": previous_posted,
+            },
+        )
+        _WRITE.remember(auth["id"], key, result, fingerprint)
+        return JSONResponse(result)
+
+    @app.post("/v1/action")
+    async def run_action(request: Request) -> JSONResponse:
+        auth = _authenticate(request, scope="write")
+        if isinstance(auth, JSONResponse):
+            return auth
+        payload = await _json_payload(request)
+        if isinstance(payload, JSONResponse):
+            return payload
+        name = payload.get("name")
+        if name != "DemoPostShipment":
+            return problem(404, "not_found", "Not found", f"Действие {name} не в whitelist")
+        arguments = payload.get("arguments") or {}
+        item_id = arguments.get("id") if isinstance(arguments, dict) else None
+        collection = _COLLECTIONS[("document", "DemoShipments")]
+        if not item_id or item_id not in collection:
+            return problem(404, "not_found", "Not found", "Документ не найден")
+        if not _allowed(auth, "document", "DemoShipments", "write"):
+            return problem(403, "forbidden", "Forbidden", "Нет доступа на запись")
+        errors = posting_check(collection[item_id])
+        if errors:
+            return problem(422, "posting_failed", "Posting failed", "; ".join(errors))
+        previous_posted = bool(collection[item_id].get("Posted"))
+        collection[item_id]["Posted"] = True
+        _WRITE.track(
+            _session_id(request),
+            {
+                "op": "post",
+                "kind": "document",
+                "name": "DemoShipments",
+                "id": item_id,
+                "previous_posted": previous_posted,
+            },
+        )
+        return JSONResponse(
+            {
+                "name": "DemoPostShipment",
+                "posted": True,
+                "ref": collection[item_id]["ref"],
+            }
+        )
+
+    @app.post("/v1/session/rollback")
+    async def rollback_session(request: Request) -> JSONResponse:
+        auth = _authenticate(request, scope="write")
+        if isinstance(auth, JSONResponse):
+            return auth
+        payload = await _json_payload(request)
+        if isinstance(payload, JSONResponse):
+            return payload
+        session = payload.get("session_id")
+        if not session:
+            return problem(400, "bad_request", "Bad request", "Нужен session_id")
+        undone = _WRITE.rollback(str(session))
+        return JSONResponse({"session_id": session, "undone": undone})
 
     @app.api_route("/v1/{path:path}", methods=["GET", "POST", "PATCH", "PUT", "DELETE"])
     async def not_implemented(path: str, request: Request) -> JSONResponse:  # noqa: ARG001

@@ -6,7 +6,7 @@ import pytest
 from onecmcp.client import OneCClient
 from onecmcp.config import Settings
 from onecmcp.mcp_server import _client, create_mcp
-from onecmcp.mock1c import DEMO_CATALOG, DEV_TOKEN, DEMO_ID_ROMA, create_mock_app
+from onecmcp.mock1c import DEMO_CATALOG, DEMO_ID_ROMA, DEV_TOKEN, WRITE_DEV_TOKEN, create_mock_app
 
 
 def test_mcp_registers_discovery_tools() -> None:
@@ -23,6 +23,12 @@ def test_mcp_registers_discovery_tools() -> None:
         "report",
         "query",
         "job_get",
+        "data_dry_run",
+        "data_create",
+        "data_patch",
+        "data_post",
+        "action",
+        "session_rollback",
     } <= names
 
 
@@ -78,6 +84,53 @@ async def test_mcp_tools_call_adapter() -> None:
     assert "job_id" in accepted
     job = await server._tool_manager.get_tool("job_get").fn(id=accepted["job_id"])
     assert job["status"] == "succeeded"
+
+
+async def test_mcp_write_tools() -> None:
+    transport = httpx.ASGITransport(app=create_mock_app())
+    settings = Settings(onec_base_url="http://adapter", onec_token=WRITE_DEV_TOKEN)
+
+    def make_client() -> OneCClient:
+        return OneCClient(settings, transport=transport)
+
+    server = create_mcp(settings, make_client=make_client)
+    item = (
+        '{"Number":"000000077","Date":"2026-09-09",'
+        f'"Counterparty":{{"id":"{DEMO_ID_ROMA}"}},"Amount":10}}'
+    )
+    dry = await server._tool_manager.get_tool("data_dry_run").fn(
+        kind="document", name="DemoShipments", item=item
+    )
+    assert dry["confirm_token"].startswith("dry-")
+    created = await server._tool_manager.get_tool("data_create").fn(
+        kind="document",
+        name="DemoShipments",
+        item=item,
+        confirm_token=dry["confirm_token"],
+        idempotency_key="idem-mcp-1",
+        session_id="sess-mcp",
+    )
+    new_id = created["ref"]["id"]
+    post_item = (
+        '{"Number":"000000077","Date":"2026-09-09",'
+        f'"Counterparty":{{"id":"{DEMO_ID_ROMA}"}},"Amount":10,"id":"{new_id}"}}'
+    )
+    post_dry = await server._tool_manager.get_tool("data_dry_run").fn(
+        kind="document", name="DemoShipments", item=post_item, post=True
+    )
+    posted = await server._tool_manager.get_tool("data_post").fn(
+        kind="document",
+        name="DemoShipments",
+        id=new_id,
+        confirm_token=post_dry["confirm_token"],
+        idempotency_key="idem-mcp-post",
+        session_id="sess-mcp",
+    )
+    assert posted["posted"] is True
+    rolled = await server._tool_manager.get_tool("session_rollback").fn(session_id="sess-mcp")
+    assert rolled["session_id"] == "sess-mcp"
+    unknown = await server._tool_manager.get_tool("action").fn(name="DropDatabase", arguments="{}")
+    assert unknown["status"] == 404
 
 
 async def test_client_context_closes_and_skips_empty() -> None:
