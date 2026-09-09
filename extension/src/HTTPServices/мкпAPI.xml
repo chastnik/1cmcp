@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config" xmlns:cmi="http://v8.1c.ru/8.2/managed-application/cmi" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:style="http://v8.1c.ru/8.1/data/ui/style" xmlns:sys="http://v8.1c.ru/8.1/data/ui/fonts/system" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:web="http://v8.1c.ru/8.1/data/ui/colors/web" xmlns:win="http://v8.1c.ru/8.1/data/ui/colors/windows" xmlns:xen="http://v8.1c.ru/8.3/xcf/enums" xmlns:xpr="http://v8.1c.ru/8.3/xcf/predef" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.17">
+	<HTTPService uuid="a4b63661-1c90-4106-98e2-f198fc9dc1f8">
+		<Properties>
+			<Name>мкпAPI</Name>
+			<Synonym>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>1cmcp API</v8:content>
+				</v8:item>
+			</Synonym>
+			<Comment>Версионированный HTTP-сервис адаптера. Корневой URL mcp, повторное использование сеансов AutoUse.</Comment>
+			<RootURL>mcp</RootURL>
+			<ReuseSessions>AutoUse</ReuseSessions>
+			<SessionMaxAge>20</SessionMaxAge>
+		</Properties>
+		<ChildObjects>
+			<URLTemplate uuid="9d908853-3ebe-4df4-8b85-f5385c9b3377">
+				<Properties>
+					<Name>Health</Name>
+					<Synonym>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Health</v8:content>
+						</v8:item>
+					</Synonym>
+					<Template>/v1/health</Template>
+				</Properties>
+				<ChildObjects>
+					<Method uuid="01c52215-a952-460d-af1c-884fd230892f">
+						<Properties>
+							<Name>GET</Name>
+							<Synonym>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>GET</v8:content>
+								</v8:item>
+							</Synonym>
+							<HTTPMethod>GET</HTTPMethod>
+							<Handler>HealthGET</Handler>
+						</Properties>
+					</Method>
+				</ChildObjects>
+			</URLTemplate>
+			<URLTemplate uuid="6aeeccb9-3ff4-4653-a529-040cd9af16a5">
+				<Properties>
+					<Name>Meta</Name>
+					<Synonym>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Meta</v8:content>
+						</v8:item>
+					</Synonym>
+					<Template>/v1/meta</Template>
+				</Properties>
+				<ChildObjects>
+					<Method uuid="f1b7c60e-b4d4-4d8b-a5c3-08e0f4e04c10">
+						<Properties>
+							<Name>GET</Name>
+							<Synonym>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>GET</v8:content>
+								</v8:item>
+							</Synonym>
+							<HTTPMethod>GET</HTTPMethod>
+							<Handler>MetaGET</Handler>
+						</Properties>
+					</Method>
+				</ChildObjects>
+			</URLTemplate>
+			<URLTemplate uuid="9f19326a-3cc2-4ebf-af69-20a28fb65d96">
+				<Properties>
+					<Name>MetaSearch</Name>
+					<Synonym>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Meta search</v8:content>
+						</v8:item>
+					</Synonym>
+					<Template>/v1/meta/search</Template>
+				</Properties>
+				<ChildObjects>
+					<Method uuid="dedccdf7-9bd1-445d-abb2-1d3b7d152f98">
+						<Properties>
+							<Name>GET</Name>
+							<Synonym>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>GET</v8:content>
+								</v8:item>
+							</Synonym>
+							<HTTPMethod>GET</HTTPMethod>
+							<Handler>MetaSearchGET</Handler>
+						</Properties>
+					</Method>
+				</ChildObjects>
+			</URLTemplate>
+			<URLTemplate uuid="9dfbcd48-0395-48d9-96a8-418588c1dd94">
+				<Properties>
+					<Name>MetaObject</Name>
+					<Synonym>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Meta object</v8:content>
+						</v8:item>
+					</Synonym>
+					<Template>/v1/meta/{kind}/{name}</Template>
+				</Properties>
+				<ChildObjects>
+					<Method uuid="62faf342-cc96-4c7a-9d72-22ac9eb0ce5a">
+						<Properties>
+							<Name>GET</Name>
+							<Synonym>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>GET</v8:content>
+								</v8:item>
+							</Synonym>
+							<HTTPMethod>GET</HTTPMethod>
+							<Handler>MetaObjectGET</Handler>
+						</Properties>
+					</Method>
+				</ChildObjects>
+			</URLTemplate>
+			<URLTemplate uuid="db7675dc-19ee-4753-8230-0a6467be0d8f">
+				<Properties>
+					<Name>DataCollection</Name>
+					<Synonym>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Data collection</v8:content>
+						</v8:item>
+					</Synonym>
+					<Template>/v1/data/{kind}/{name}</Template>
+				</Properties>
+				<ChildObjects>
+					<Method uuid="34efe601-e15b-4d42-a04d-eb3ecf95562b">
+						<Properties>
+							<Name>GET</Name>
+							<Synonym>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>GET</v8:content>
+								</v8:item>
+							</Synonym>
+							<HTTPMethod>GET</HTTPMethod>
+							<Handler>DataCollectionGET</Handler>
+						</Properties>
+					</Method>
+				</ChildObjects>
+			</URLTemplate>
+			<URLTemplate uuid="cc51209d-41b6-4298-a640-b2d5b203461c">
+				<Properties>
+					<Name>DataItem</Name>
+					<Synonym>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Data item</v8:content>
+						</v8:item>
+					</Synonym>
+					<Template>/v1/data/{kind}/{name}/{id}</Template>
+				</Properties>
+				<ChildObjects>
+					<Method uuid="c325e934-fb1f-49a0-98bd-ae2e67a48929">
+						<Properties>
+							<Name>GET</Name>
+							<Synonym>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>GET</v8:content>
+								</v8:item>
+							</Synonym>
+							<HTTPMethod>GET</HTTPMethod>
+							<Handler>DataItemGET</Handler>
+						</Properties>
+					</Method>
+				</ChildObjects>
+			</URLTemplate>
+		</ChildObjects>
+	</HTTPService>
+</MetaDataObject>

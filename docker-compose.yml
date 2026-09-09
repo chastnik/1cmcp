@@ -1,0 +1,20 @@
+services:
+  mock1c:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    command: python -m onecmcp mock1c --host 0.0.0.0 --port 18080
+    ports:
+      - "18080:18080"
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    command: python -m onecmcp serve --host 0.0.0.0 --port 8000
+    environment:
+      ONEC_BASE_URL: http://mock1c:18080
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mock1c
