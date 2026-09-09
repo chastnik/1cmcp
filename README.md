@@ -9,7 +9,7 @@
 | Документ | Для кого |
 |---|---|
 | **[Установка](docs/install.md)** | внедренец, администратор 1С, DevOps: мок, расширение, публикация, шлюз, Docker, Claude Desktop |
-| **[Пользование](docs/usage.md)** | аналитик, консультант, автор сценариев: REST, MCP, фильтры, словарь, ACL, сценарий «отгрузки за август» |
+| **[Пользование](docs/usage.md)** | аналитик, консультант, автор сценариев: REST, MCP, фильтры, ACL, запись, сценарий «отгрузки за август» |
 | **[Пресеты и навыки](docs/skills.md)** | простые вопросы к УТ/КА/ERP/БП: `guide`, словари синонимов, чем «отчёт» отличается от СКД |
 | [Чек-лист приёмки](docs/acceptance-checklist.md) | ревью |
 | [`specs/openapi.yaml`](specs/openapi.yaml) | контракт HTTP API v1 |
@@ -25,6 +25,200 @@
 | **C** | Потребители: Claude, PIX Operator, n8n, Dify, внутренние сервисы | Снаружи |
 
 Между A и B — только HTTPS с mTLS или VPN. Прямая публикация 1С наружу не предусмотрена.
+
+### Слои и доверие
+
+```mermaid
+flowchart LR
+  subgraph consumers["Слой C — потребители"]
+    Agent["Агент Claude / IDE"]
+    Apps["n8n / Dify / curl"]
+  end
+  subgraph gateway["Слой B — шлюз onecmcp"]
+    MCP["MCP stdio"]
+    REST["REST FastAPI"]
+    Preset["guide и пресеты УТ/КА/ERP/БП"]
+    MetaCache["кэш meta, TTL 60 с"]
+  end
+  subgraph adapter["Слой A — адаптер"]
+    Mock["мок :18080"]
+    Ext["расширение мкпКоннектор\n/hs/mcp/v1"]
+    IB["информационная база 1С"]
+  end
+  Agent --> MCP
+  Apps --> REST
+  MCP --> Preset
+  MCP --> MetaCache
+  REST --> MetaCache
+  MCP -->|"HTTPS / внутренняя сеть"| Mock
+  MCP --> Ext
+  REST --> Mock
+  REST --> Ext
+  Ext --> IB
+```
+
+Снаружи виден только слой B (или stdio MCP на рабочей станции). Слой A в интернет не публикуется.
+
+### Карта функционала
+
+Слева — MCP-инструмент, справа — HTTP. Один контракт v1.
+
+```mermaid
+flowchart TB
+  subgraph disc["Discovery"]
+    H["health"]
+    G["guide — только MCP"]
+    ML["meta_list"]
+    MS["meta_search"]
+    MD["meta_describe"]
+  end
+  subgraph read["Чтение"]
+    DL["data_list"]
+    DG["data_get"]
+  end
+  subgraph qrep["Отчёты и запросы"]
+    R["report"]
+    Q["query"]
+    J["job_get"]
+  end
+  subgraph wr["Запись"]
+    DR["data_dry_run"]
+    DC["data_create"]
+    DP["data_patch"]
+    DPost["data_post"]
+    Act["action"]
+    RB["session_rollback"]
+  end
+  H --- GETH["GET /v1/health"]
+  ML --- GETM["GET /v1/meta"]
+  MS --- GETS["GET /v1/meta/search"]
+  MD --- GETD["GET /v1/meta/:kind/:name"]
+  DL --- GETL["GET /v1/data/:kind/:name"]
+  DG --- GETI["GET /v1/data/:kind/:name/:id"]
+  R --- POSTR["POST /v1/report"]
+  Q --- POSTQ["POST /v1/query"]
+  J --- GETJ["GET /v1/job/:id"]
+  DR --- POSTDR["POST .../dry-run"]
+  DC --- POSTC["POST /v1/data/:kind/:name"]
+  DP --- PATCHP["PATCH /v1/data/.../:id"]
+  DPost --- POSTP["POST .../:id/post"]
+  Act --- POSTA["POST /v1/action"]
+  RB --- POSTRB["POST /v1/session/rollback"]
+```
+
+`guide` в 1С не ходит. `async: true` на `query`/`report` даёт `202` и тот же `job_get`. `POST /v1/job` с `operation: action` — `501`; действия только через `/v1/action`.
+
+### Пайплайн: вопрос «сколько отгрузок за август»
+
+```mermaid
+sequenceDiagram
+  participant U as Пользователь
+  participant C as Агент
+  participant B as Шлюз
+  participant A as Адаптер
+  U->>C: сколько отгрузок за август по Ромашке
+  C->>B: guide(question)
+  B-->>C: шаги, гипотеза объекта
+  C->>B: meta_search("отгрузка")
+  B->>A: GET /v1/meta/search
+  A-->>B: DemoShipments / пресет
+  C->>B: meta_describe(document, DemoShipments)
+  B->>A: GET /v1/meta/document/DemoShipments
+  A-->>B: поля Date, Amount, Counterparty
+  alt есть отчёт СКД
+    C->>B: report(DemoSales / Продажи)
+    B->>A: POST /v1/report
+    A-->>C: totals, content_kind=data
+  else нет отчёта
+    C->>B: data_list + filter по дате и id
+    B->>A: GET /v1/data/document/DemoShipments
+    A-->>C: items, сумма на стороне агента
+  end
+```
+
+Тяжёлый запрос: `query(..., async_mode=true)` → `202 {job_id}` → `job_get`.
+
+### Пайплайн: создание и проведение документа
+
+```mermaid
+sequenceDiagram
+  participant C as Агент
+  participant B as Шлюз
+  participant A as Адаптер
+  C->>B: data_dry_run item, post=false
+  B->>A: POST .../dry-run
+  A-->>C: confirm_token, preview, fill_check
+  alt fill_check не пуст
+    C-->>C: исправить поля, снова dry-run
+  else ок
+    C->>B: data_create + confirm_token, Idempotency-Key, session
+    B->>A: POST /v1/data/:kind/:name
+    A-->>C: 201 ref, posted=false
+    C->>B: повтор с тем же ключом
+    A-->>C: тот же ref, без дубля
+    C->>B: data_dry_run post=true по id
+    C->>B: data_post + новый токен
+    B->>A: POST .../:id/post
+    A-->>C: posted=true или 422
+    opt ошибка агента
+      C->>B: session_rollback
+      B->>A: POST /v1/session/rollback
+      A-->>C: undone
+    end
+  end
+```
+
+Без `confirm_token` — `400 confirm_required`. Другое тело при том же ключе — `409`. Пустой ACL и токен `dev-token` писать не могут; стенд записи — `dev-write-token`.
+
+### Пайплайн: доступ
+
+```mermaid
+flowchart TD
+  Req["Запрос /v1/*"] --> Health{"health / ready / openapi?"}
+  Health -->|да| Ok["200 без Bearer"]
+  Health -->|нет| Auth{"Bearer известен?"}
+  Auth -->|нет| E401["401 unauthorized"]
+  Auth -->|да| Scope{"нужный скоуп read или write?"}
+  Scope -->|нет| E403["403 forbidden"]
+  Scope -->|да| Hidden{"имя с префиксом мкп?"}
+  Hidden -->|да| E404["404 not_found"]
+  Hidden -->|нет| ACL{"есть строки мкпПравилаДоступа?"}
+  ACL -->|нет| ReadOnly{"операция read?"}
+  ReadOnly -->|да| Allow["доступ"]
+  ReadOnly -->|нет| E403
+  ACL -->|да| WL{"явное Разрешено для kind/name/операции?"}
+  WL -->|да| Allow
+  WL -->|нет| E403
+  Allow --> Plat["права пользователя ИБ 1С"]
+```
+
+Пустой ACL = только чтение прикладных объектов. Запись — скоуп `write` **и** строка whitelist. Платформа 1С может отдать пустую выборку даже при 200 коннектора.
+
+### Объекты расширения
+
+```mermaid
+flowchart LR
+  HTTP["HTTP мкпAPI"] --> R["мкпМаршрутизатор"]
+  R --> Sec["мкпБезопасность"]
+  R --> Intro["мкпИнтроспекция"]
+  R --> Data["мкпДанные"]
+  R --> Q["мкпЗапросы"]
+  R --> Rep["мкпОтчёты"]
+  R --> Job["мкпЗадания"]
+  R --> Act["мкпДействия"]
+  Sec --> Clients["мкпКлиентыИнтеграции"]
+  Sec --> ACL["мкпПравилаДоступа"]
+  Sec --> Log["мкпЖурналВызовов"]
+  Intro --> Dict["мкпСемантическийСловарь"]
+  Q --> NQ["мкпИменованныеЗапросы"]
+  Job --> Jobs["мкпСостоянияЗаданий"]
+  Act --> AW["мкпДействияИнтеграции"]
+  Data --> Idem["мкпКлючиИдемпотентности"]
+  Data --> Tok["мкпТокеныПодтверждения"]
+  Data --> Sess["мкпОперацииСессии"]
+```
+
+Подробные команды и фильтры — в [пользовании](docs/usage.md). Контракт полей — [`specs/openapi.yaml`](specs/openapi.yaml).
 
 ## Статус
 
@@ -66,7 +260,7 @@ curl -s -H "Authorization: Bearer dev-token" \
 
 Мок отвечает на `/v1/health` без токена; чтение — `Authorization: Bearer dev-token`. Запись на стенде — `dev-write-token` (скоупы `read,write` и ACL на демо-объекты). Фикстуры: `Catalog.DemoCounterparties`, `Document.DemoShipments`, отчёт `DemoSales`.
 
-Подключение Claude Desktop: [`docs/claude-desktop.mcp.json`](docs/claude-desktop.mcp.json), пошагово в [установке §6](docs/install.md#61-claude-desktop). Как задавать вопросы агенту — [пользование](docs/usage.md).
+Подключение Claude Desktop: [`docs/claude-desktop.mcp.json`](docs/claude-desktop.mcp.json), пошагово в [установке §6](docs/install.md#61-claude-desktop). Как задавать вопросы агенту — [пользование](docs/usage.md). Схемы слоёв, API и пайплайнов — в разделе [Архитектура](#архитектура) выше.
 
 ## Репозиторий
 

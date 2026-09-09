@@ -85,6 +85,8 @@ export BASE=http://127.0.0.1:8000
 
 «Покажи отчёт по продажам» — сначала MCP **`report`** (на моке `DemoSales`, в типовой УТ обычно `Продажи`). Если 404 — выборка реализаций и сумма, как в фазе 1.
 
+Создание документа — не сразу `data_create`. Сначала **`data_dry_run`**, показать `preview` / `fill_check`, затем `data_create` с `confirm_token`, уникальным `idempotency_key` и при необходимости `session_id`. Проведение — отдельный `data_post` после dry-run с `post=true`. Откат сессии — `session_rollback`. Схемы пайплайнов — в [README](../README.md#пайплайн-создание-и-проведение-документа).
+
 ---
 
 ## 4. REST: живые примеры
@@ -354,7 +356,7 @@ curl -sS -H "Authorization: Bearer $TOKEN" "$BASE/v1/job/<job_id>"
 
 Не указывайте URL 1С (`/hs/mcp`) в сценарии n8n, если n8n доступен шире, чем шлюз.
 
-Dify / собственный backend — тот же REST. Импорт OpenAPI: скачайте `http://gateway:8000/openapi.yaml`. Часть операций там с пометкой будущих фаз и вернёт 501.
+Dify / собственный backend — тот же REST. Импорт OpenAPI: скачайте `http://gateway:8000/openapi.yaml`. Не реализовано из контракта: OAuth шлюза и админ-мастер (Ф4); `POST /v1/job` с `operation: action` отвечает `501` — действия через `POST /v1/action`.
 
 ---
 
