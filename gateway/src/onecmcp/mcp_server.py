@@ -16,6 +16,7 @@ from onecmcp.tools import (
     data_list_tool,
     data_patch_tool,
     data_post_tool,
+    diag_tool,
     guide_tool,
     health_tool,
     job_get_tool,
@@ -51,6 +52,12 @@ def create_mcp(
         """Проверить связь шлюза с адаптером 1С."""
         async with _client(factory) as client:
             return await health_tool(client)
+
+    @mcp.tool()
+    async def diag() -> dict:
+        """Самодиагностика шлюза и адаптера: версия, пресет, публикация. Без секретов и без ключа продукта."""
+        async with _client(factory) as client:
+            return await diag_tool(client, settings)
 
     @mcp.tool()
     async def guide(question: str) -> dict:

@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "onecmcp.fullname" . }}
+  labels:
+    {{- include "onecmcp.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "onecmcp.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        {{- include "onecmcp.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: gateway
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["python", "-m", "onecmcp", "serve", "--host", "0.0.0.0", "--port", "8000"]
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          env:
+            - name: ONEC_BASE_URL
+              value: {{ .Values.onec.baseUrl | quote }}
+            - name: ONEC_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "onecmcp.fullname" . }}
+                  key: onec-token
+            - name: ONEC_TIMEOUT_SECONDS
+              value: {{ .Values.onec.timeoutSeconds | quote }}
+            - name: ONEC_PRESET
+              value: {{ .Values.onec.preset | quote }}
+            - name: TENANT
+              value: {{ .Values.gateway.tenant | quote }}
+            - name: META_CACHE_TTL_SECONDS
+              value: {{ .Values.gateway.metaCacheTtlSeconds | quote }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

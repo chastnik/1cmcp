@@ -11,6 +11,7 @@
 | **[Установка](docs/install.md)** | внедренец, администратор 1С, DevOps: мок, расширение, публикация, шлюз, Docker, Claude Desktop |
 | **[Пользование](docs/usage.md)** | аналитик, консультант, автор сценариев: REST, MCP, фильтры, ACL, запись, сценарий «отгрузки за август» |
 | **[Пресеты и навыки](docs/skills.md)** | простые вопросы к УТ/КА/ERP/БП: `guide`, словари синонимов, чем «отчёт» отличается от СКД |
+| **[Совместимость](docs/compatibility.md)** | платформа 8.3.20+, файловый и клиент-серверный режимы, версии |
 | [Чек-лист приёмки](docs/acceptance-checklist.md) | ревью |
 | [`specs/openapi.yaml`](specs/openapi.yaml) | контракт HTTP API v1 |
 
@@ -67,6 +68,7 @@ flowchart LR
 flowchart TB
   subgraph disc["Discovery"]
     H["health"]
+    Dg["diag"]
     G["guide — только MCP"]
     ML["meta_list"]
     MS["meta_search"]
@@ -90,6 +92,7 @@ flowchart TB
     RB["session_rollback"]
   end
   H --- GETH["GET /v1/health"]
+  Dg --- GETDG["GET /v1/diag и /diag"]
   ML --- GETM["GET /v1/meta"]
   MS --- GETS["GET /v1/meta/search"]
   MD --- GETD["GET /v1/meta/:kind/:name"]
@@ -174,7 +177,7 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-  Req["Запрос /v1/*"] --> Health{"health / ready / openapi?"}
+  Req["Запрос /v1/*"] --> Health{"health / diag / ready / openapi?"}
   Health -->|да| Ok["200 без Bearer"]
   Health -->|нет| Auth{"Bearer известен?"}
   Auth -->|нет| E401["401 unauthorized"]
@@ -206,6 +209,7 @@ flowchart LR
   R --> Rep["мкпОтчёты"]
   R --> Job["мкпЗадания"]
   R --> Act["мкпДействия"]
+  HTTP --> Adm["мкпАдминистрированиеКоннектора"]
   Sec --> Clients["мкпКлиентыИнтеграции"]
   Sec --> ACL["мкпПравилаДоступа"]
   Sec --> Log["мкпЖурналВызовов"]
@@ -222,14 +226,15 @@ flowchart LR
 
 ## Статус
 
-Фаза 3 — запись объектов, dry-run с `confirm_token`, идемпотентность, whitelist действий и откат сессии. В репозитории:
+Фаза 4 — продуктизация: обработка администрирования, самодиагностика, Docker Compose и Helm. Ключ продукта не нужен. В репозитории:
 
-- ADR, регламент clean room, чек-лист приёмки
-- OpenAPI 3.1 на весь v1 (версия контракта 0.4.0)
-- расширение `мкпКоннектор`: Bearer-токен, интроспекция, чтение, `query`/`report`/`job`, запись/`action`/откат
-- шлюз с REST-прокси, кэшем метаданных, MCP (discovery, отчёты, запись) и моком слоя A
+- ADR, регламент clean room, чек-лист приёмки, [совместимость](docs/compatibility.md)
+- OpenAPI 3.1 на весь v1 (версия контракта 0.5.0)
+- расширение `мкпКоннектор`: Bearer-токен, интроспекция, чтение, `query`/`report`/`job`, запись/`action`/откат, `GET /v1/diag`, обработка `мкпАдминистрированиеКоннектора`
+- шлюз с REST-прокси, `GET /diag`, кэшем метаданных, MCP (включая `diag`) и моком слоя A
+- `docker-compose.yml` с healthcheck и чарт `deploy/helm/onecmcp`
 
-Критерий Ф3: агент создаёт и проводит документ на стенде, повтор с тем же `Idempotency-Key` не плодит дубль, сессия откатывается одним вызовом. Живая база 1С на CI появится, когда на раннере будет платформа; до этого XML, префикс, UUID и контракт проверяются моком (`DemoShipments`, `DemoPostShipment`).
+Критерий Ф4: инженер не из команды разворачивает коннектор по документации за рабочий день. Живая база 1С на CI появится, когда на раннере будет платформа; до этого XML, префикс, UUID и контракт проверяются моком.
 
 ## Быстрый старт (без базы 1С)
 
@@ -252,6 +257,7 @@ python -m onecmcp serve --port 8000
 
 ```bash
 curl -s http://127.0.0.1:8000/v1/health
+curl -s http://127.0.0.1:8000/diag
 curl -s -H "Authorization: Bearer dev-token" \
   "http://127.0.0.1:8000/v1/meta/search?q=отгрузка"
 ```
@@ -276,6 +282,8 @@ curl -s -H "Authorization: Bearer dev-token" \
 | `extension/src/` | Выгрузка расширения в файлы (Designer, формат 2.17) |
 | `gateway/` | Шлюз Python |
 | `.env.example` | Переменные шлюза и MCP |
+| `deploy/helm/onecmcp/` | Helm-чарт шлюза |
+| `docs/compatibility.md` | Платформа 8.3.20+, режимы ИБ, версии |
 | `scripts/ci.sh` | Локальный запуск CI: тесты и покрытие ≥ 90% |
 | `План разработки MCP-коннектора 1С.md` | Дорожная карта |
 

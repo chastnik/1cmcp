@@ -419,6 +419,33 @@
 					</Method>
 				</ChildObjects>
 			</URLTemplate>
+			<URLTemplate uuid="12b02d96-7ebd-4b80-8610-1a72b2cf7376">
+				<Properties>
+					<Name>Diag</Name>
+					<Synonym>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Diag</v8:content>
+						</v8:item>
+					</Synonym>
+					<Template>/v1/diag</Template>
+				</Properties>
+				<ChildObjects>
+					<Method uuid="a77f7461-c3fb-403c-a909-257a03f171d0">
+						<Properties>
+							<Name>GET</Name>
+							<Synonym>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>GET</v8:content>
+								</v8:item>
+							</Synonym>
+							<HTTPMethod>GET</HTTPMethod>
+							<Handler>DiagGET</Handler>
+						</Properties>
+					</Method>
+				</ChildObjects>
+			</URLTemplate>
 		</ChildObjects>
 	</HTTPService>
 </MetaDataObject>

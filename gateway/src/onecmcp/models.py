@@ -13,6 +13,53 @@ class Health(BaseModel):
     time: str
 
 
+class DiagCheck(BaseModel):
+    id: str
+    ok: bool
+    detail: str | None = None
+
+
+class Compatibility(BaseModel):
+    platform: str
+    modes: list[str]
+
+
+class PublicationInfo(BaseModel):
+    root_url: str
+    reuse_sessions: str
+    session_max_age: int
+
+
+class AdapterDiag(BaseModel):
+    status: str
+    service: str
+    version: str
+    api: str
+    time: str
+    product_license: str
+    compatibility: Compatibility
+    publication: PublicationInfo
+    checks: list[DiagCheck]
+
+
+class GatewayInfo(BaseModel):
+    preset: str
+    meta_cache_ttl_seconds: float
+    tenant: str
+    adapter_host: str
+
+
+class GatewayDiag(BaseModel):
+    status: str
+    service: str
+    version: str
+    api: str
+    product_license: str
+    gateway: GatewayInfo
+    adapter: AdapterDiag | None = None
+    checks: list[DiagCheck]
+
+
 class Problem(BaseModel):
     type: str
     title: str

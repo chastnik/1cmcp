@@ -90,6 +90,9 @@ class OneCClient:
     async def health(self) -> dict[str, Any]:
         return await self.get_json("/v1/health")
 
+    async def diag(self) -> dict[str, Any]:
+        return await self.get_json("/v1/diag")
+
     async def meta_list(
         self,
         *,

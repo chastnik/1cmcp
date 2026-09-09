@@ -14,6 +14,7 @@ def test_mcp_registers_discovery_tools() -> None:
     names = {tool.name for tool in server._tool_manager.list_tools()}
     assert {
         "health",
+        "diag",
         "guide",
         "meta_search",
         "meta_describe",
