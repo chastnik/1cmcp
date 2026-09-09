@@ -51,11 +51,16 @@ def test_configuration_is_addon_with_prefix() -> None:
         ("CommonModule", "мкпСериализация"),
         ("CommonModule", "мкпИнтроспекция"),
         ("CommonModule", "мкпДанные"),
+        ("CommonModule", "мкпЗапросы"),
+        ("CommonModule", "мкпОтчёты"),
+        ("CommonModule", "мкпЗадания"),
         ("HTTPService", "мкпAPI"),
         ("Catalog", "мкпКлиентыИнтеграции"),
+        ("Catalog", "мкпИменованныеЗапросы"),
         ("InformationRegister", "мкпПравилаДоступа"),
         ("InformationRegister", "мкпСемантическийСловарь"),
         ("InformationRegister", "мкпЖурналВызовов"),
+        ("InformationRegister", "мкпСостоянияЗаданий"),
     ]
 
 
@@ -85,11 +90,16 @@ def test_native_object_names_use_prefix() -> None:
         "мкпСериализация",
         "мкпИнтроспекция",
         "мкпДанные",
+        "мкпЗапросы",
+        "мкпОтчёты",
+        "мкпЗадания",
         "мкпAPI",
         "мкпКлиентыИнтеграции",
+        "мкпИменованныеЗапросы",
         "мкпПравилаДоступа",
         "мкпСемантическийСловарь",
         "мкпЖурналВызовов",
+        "мкпСостоянияЗаданий",
     }
     assert object_names <= set(names)
     for name in object_names:
@@ -122,6 +132,10 @@ def test_http_service_health_and_session_reuse() -> None:
     assert "/v1/meta/{kind}/{name}" in templates
     assert "/v1/data/{kind}/{name}" in templates
     assert "/v1/data/{kind}/{name}/{id}" in templates
+    assert "/v1/query" in templates
+    assert "/v1/report" in templates
+    assert "/v1/job" in templates
+    assert "/v1/job/{id}" in templates
     handlers = [
         node.findtext(f"{MD}Properties/{MD}Handler")
         for node in tree.findall(f".//{MD}Method")
@@ -145,9 +159,15 @@ def test_router_implements_health_contract() -> None:
         "/v1/health",
         "/v1/meta",
         "/v1/data",
+        "/v1/query",
+        "/v1/report",
+        "/v1/job",
         "мкпБезопасность",
         "мкпИнтроспекция",
         "мкпДанные",
+        "мкпЗапросы",
+        "мкпОтчёты",
+        "мкпЗадания",
     ):
         assert needle in module
 
@@ -164,19 +184,24 @@ def test_uuids_are_unique() -> None:
     assert len(uuids) == len(set(uuids))
 
 
-def test_configuration_version_and_phase1_rights() -> None:
+def test_configuration_version_and_phase2_rights() -> None:
     tree = ET.parse(SRC / "Configuration.xml")
     props = tree.find(f"{MD}Configuration/{MD}Properties")
-    assert props.findtext(f"{MD}Version") == "0.2.0"
+    assert props.findtext(f"{MD}Version") == "0.3.0"
     rights = (SRC / "Roles" / "мкпДоступКоннектора" / "Ext" / "Rights.xml").read_text(
         encoding="utf-8"
     )
     for needle in (
         "CommonModule.мкпБезопасность",
+        "CommonModule.мкпЗапросы",
+        "CommonModule.мкпОтчёты",
+        "CommonModule.мкпЗадания",
         "Catalog.мкпКлиентыИнтеграции",
+        "Catalog.мкпИменованныеЗапросы",
         "InformationRegister.мкпЖурналВызовов",
         "InformationRegister.мкпСемантическийСловарь",
         "InformationRegister.мкпПравилаДоступа",
+        "InformationRegister.мкпСостоянияЗаданий",
     ):
         assert needle in rights
 
@@ -194,3 +219,12 @@ def test_phase1_modules_export_expected_entrypoints() -> None:
         encoding="utf-8"
     )
     assert "Функция ПоискСемантики" in meta
+    queries = (SRC / "CommonModules" / "мкпЗапросы" / "Ext" / "Module.bsl").read_text(
+        encoding="utf-8"
+    )
+    assert "Функция ПроверитьТекстВыборки" in queries
+    reports = (SRC / "CommonModules" / "мкпОтчёты" / "Ext" / "Module.bsl").read_text(encoding="utf-8")
+    assert "Функция ВыполнитьПоТелу" in reports
+    jobs = (SRC / "CommonModules" / "мкпЗадания" / "Ext" / "Module.bsl").read_text(encoding="utf-8")
+    assert "Функция Поставить" in jobs
+    assert "Функция Получить" in jobs

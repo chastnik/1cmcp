@@ -28,14 +28,14 @@
 
 ## Статус
 
-Фаза 1 — чтение и интроспекция. В репозитории:
+Фаза 2 — отчёты СКД, именованные и проверенные запросы, фоновые задания. В репозитории:
 
 - ADR, регламент clean room, чек-лист приёмки
-- OpenAPI 3.1 на весь v1 (версия контракта 0.2.0)
-- расширение `мкпКоннектор`: Bearer-токен, интроспекция, чтение `meta`/`data`, журнал
-- шлюз с REST-прокси, кэшем метаданных, MCP discovery (`meta_search`, `meta_list`, `meta_describe`, `data_list`, `data_get`) и моком слоя A
+- OpenAPI 3.1 на весь v1 (версия контракта 0.3.0)
+- расширение `мкпКоннектор`: Bearer-токен, интроспекция, чтение `meta`/`data`, `query`/`report`/`job`, журнал
+- шлюз с REST-прокси, кэшем метаданных, MCP (`guide`, discovery, `report`, `query`, `job_get`) и моком слоя A
 
-Критерий Ф1: агент отвечает на «сколько отгрузок за август по контрагенту N и на какую сумму» через discovery и чтение, без преднастройки под вопрос. Стенд ERP с живой базой закрывается, когда на раннере появится платформа 1С; до этого CI проверяет XML, префикс, UUID и контракт через мок с фикстурой `Document.DemoShipments`.
+Критерий Ф2: агент запускает отчёт с параметрами периода и получает JSON; тяжёлый запрос уходит в фон (`202`) и читается по `job_id`. Стенд ERP с живой базой закрывается, когда на раннере появится платформа 1С; до этого CI проверяет XML, префикс, UUID и контракт через мок (`DemoSales`, `DemoShipmentsByPeriod`).
 
 ## Быстрый старт (без базы 1С)
 
@@ -64,7 +64,7 @@ curl -s -H "Authorization: Bearer dev-token" \
 
 `./scripts/ci.sh` повторяет GitHub Actions: установка пакета и `pytest` с порогом покрытия **90%**.
 
-Либо `docker compose up --build`. Мок отвечает на `/v1/health` без токена; `meta`/`data` требуют `Authorization: Bearer dev-token`. Фикстуры: `Catalog.DemoCounterparties` и `Document.DemoShipments` (отгрузки за август 2026). Операции будущих фаз — `501`.
+Либо `docker compose up --build`. Мок отвечает на `/v1/health` без токена; `meta`/`data`/`query`/`report`/`job` требуют `Authorization: Bearer dev-token`. Фикстуры: `Catalog.DemoCounterparties`, `Document.DemoShipments`, отчёт `DemoSales`. Запись и `action` — `501`.
 
 Подключение Claude Desktop: [`docs/claude-desktop.mcp.json`](docs/claude-desktop.mcp.json), пошагово в [установке §6](docs/install.md#61-claude-desktop). Как задавать вопросы агенту — [пользование](docs/usage.md).
 

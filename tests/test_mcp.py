@@ -20,6 +20,9 @@ def test_mcp_registers_discovery_tools() -> None:
         "meta_list",
         "data_list",
         "data_get",
+        "report",
+        "query",
+        "job_get",
     } <= names
 
 
@@ -57,6 +60,24 @@ async def test_mcp_tools_call_adapter() -> None:
         kind="catalog", name="DemoCounterparties", id=DEMO_ID_ROMA
     )
     assert item["item"]["Description"] == "ООО Ромашка"
+
+    sales = await server._tool_manager.get_tool("report").fn(
+        name="DemoSales",
+        parameters='{"BeginDate":"2026-08-01","EndDate":"2026-08-31"}',
+    )
+    assert sales["body"]["totals"]["Amount"] == 180000.0
+
+    queried = await server._tool_manager.get_tool("query").fn(text="ВЫБРАТЬ 1")
+    assert queried["rows"] == [[1]]
+
+    accepted = await server._tool_manager.get_tool("query").fn(
+        named_query="DemoShipmentsByPeriod",
+        parameters='{"BeginDate":"2026-08-01","EndDate":"2026-08-31"}',
+        async_mode=True,
+    )
+    assert "job_id" in accepted
+    job = await server._tool_manager.get_tool("job_get").fn(id=accepted["job_id"])
+    assert job["status"] == "succeeded"
 
 
 async def test_client_context_closes_and_skips_empty() -> None:

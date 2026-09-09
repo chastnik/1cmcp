@@ -69,7 +69,39 @@
 		</right>
 	</object>
 	<object>
+		<name>CommonModule.мкпЗапросы</name>
+		<right>
+			<name>View</name>
+			<value>true</value>
+		</right>
+	</object>
+	<object>
+		<name>CommonModule.мкпОтчёты</name>
+		<right>
+			<name>View</name>
+			<value>true</value>
+		</right>
+	</object>
+	<object>
+		<name>CommonModule.мкпЗадания</name>
+		<right>
+			<name>View</name>
+			<value>true</value>
+		</right>
+	</object>
+	<object>
 		<name>Catalog.мкпКлиентыИнтеграции</name>
+		<right>
+			<name>Read</name>
+			<value>true</value>
+		</right>
+		<right>
+			<name>View</name>
+			<value>true</value>
+		</right>
+	</object>
+	<object>
+		<name>Catalog.мкпИменованныеЗапросы</name>
 		<right>
 			<name>Read</name>
 			<value>true</value>
@@ -103,6 +135,25 @@
 	</object>
 	<object>
 		<name>InformationRegister.мкпЖурналВызовов</name>
+		<right>
+			<name>Read</name>
+			<value>true</value>
+		</right>
+		<right>
+			<name>Update</name>
+			<value>true</value>
+		</right>
+		<right>
+			<name>View</name>
+			<value>true</value>
+		</right>
+		<right>
+			<name>Edit</name>
+			<value>true</value>
+		</right>
+	</object>
+	<object>
+		<name>InformationRegister.мкпСостоянияЗаданий</name>
 		<right>
 			<name>Read</name>
 			<value>true</value>

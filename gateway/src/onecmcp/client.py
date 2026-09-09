@@ -63,6 +63,12 @@ class OneCClient:
             raise AdapterError(response.status_code, _payload(response), dict(response.headers))
         return response.json()
 
+    async def post_json(self, path: str, json: Any | None = None) -> tuple[int, Any]:
+        response = await self.request("POST", path, json=json)
+        if response.status_code >= 400:
+            raise AdapterError(response.status_code, _payload(response), dict(response.headers))
+        return response.status_code, response.json()
+
     async def health(self) -> dict[str, Any]:
         return await self.get_json("/v1/health")
 
@@ -122,6 +128,18 @@ class OneCClient:
 
     async def get_data(self, kind: str, name: str, item_id: str) -> dict[str, Any]:
         return await self.get_json(f"/v1/data/{kind}/{name}/{item_id}")
+
+    async def run_query(self, payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+        return await self.post_json("/v1/query", json=payload)
+
+    async def run_report(self, payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+        return await self.post_json("/v1/report", json=payload)
+
+    async def start_job(self, operation: str, payload: dict[str, Any] | None = None) -> tuple[int, dict[str, Any]]:
+        return await self.post_json("/v1/job", json={"operation": operation, "payload": payload or {}})
+
+    async def get_job(self, job_id: str) -> dict[str, Any]:
+        return await self.get_json(f"/v1/job/{job_id}")
 
 
 def _payload(response: httpx.Response) -> Any:
