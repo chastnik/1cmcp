@@ -54,7 +54,7 @@
 				<xr:Item xsi:type="xr:MDObjectRef">Role.мкпДоступКоннектора</xr:Item>
 			</DefaultRoles>
 			<Vendor>Первый Бит</Vendor>
-			<Version>0.1.0</Version>
+			<Version>0.2.0</Version>
 			<BriefInformation>
 				<v8:item>
 					<v8:lang>ru</v8:lang>
@@ -79,7 +79,15 @@
 		<ChildObjects>
 			<Role>мкпДоступКоннектора</Role>
 			<CommonModule>мкпМаршрутизатор</CommonModule>
+			<CommonModule>мкпБезопасность</CommonModule>
+			<CommonModule>мкпСериализация</CommonModule>
+			<CommonModule>мкпИнтроспекция</CommonModule>
+			<CommonModule>мкпДанные</CommonModule>
 			<HTTPService>мкпAPI</HTTPService>
+			<Catalog>мкпКлиентыИнтеграции</Catalog>
+			<InformationRegister>мкпПравилаДоступа</InformationRegister>
+			<InformationRegister>мкпСемантическийСловарь</InformationRegister>
+			<InformationRegister>мкпЖурналВызовов</InformationRegister>
 		</ChildObjects>
 	</Configuration>
 </MetaDataObject>

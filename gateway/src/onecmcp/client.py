@@ -4,6 +4,7 @@ from typing import Any
 
 import httpx
 
+from onecmcp.cache import MetaCache
 from onecmcp.config import Settings
 
 
@@ -24,6 +25,7 @@ class OneCClient:
             headers["Authorization"] = f"Bearer {settings.onec_token}"
         if settings.tenant:
             headers["X-Tenant"] = settings.tenant
+        self._meta_cache = MetaCache(ttl_seconds=settings.meta_cache_ttl_seconds)
         self._client = httpx.AsyncClient(
             base_url=settings.onec_base_url.rstrip("/"),
             headers=headers,
@@ -64,11 +66,40 @@ class OneCClient:
     async def health(self) -> dict[str, Any]:
         return await self.get_json("/v1/health")
 
+    async def meta_list(
+        self,
+        *,
+        kind: str | None = None,
+        limit: int = 50,
+        cursor: str | None = None,
+    ) -> dict[str, Any]:
+        key = f"list:{kind}:{limit}:{cursor}"
+        cached = self._meta_cache.get(key)
+        if cached is not None:
+            return cached
+        params: dict[str, Any] = {"limit": limit}
+        if kind:
+            params["kind"] = kind
+        if cursor:
+            params["cursor"] = cursor
+        data = await self.get_json("/v1/meta", params=params)
+        return self._meta_cache.put(key, data)
+
     async def meta_search(self, query: str, limit: int = 20) -> dict[str, Any]:
-        return await self.get_json("/v1/meta/search", params={"q": query, "limit": limit})
+        key = f"search:{query}:{limit}"
+        cached = self._meta_cache.get(key)
+        if cached is not None:
+            return cached
+        data = await self.get_json("/v1/meta/search", params={"q": query, "limit": limit})
+        return self._meta_cache.put(key, data)
 
     async def meta_describe(self, kind: str, name: str) -> dict[str, Any]:
-        return await self.get_json(f"/v1/meta/{kind}/{name}")
+        key = f"describe:{kind}:{name}"
+        cached = self._meta_cache.get(key)
+        if cached is not None:
+            return cached
+        data = await self.get_json(f"/v1/meta/{kind}/{name}")
+        return self._meta_cache.put(key, data)
 
     async def list_data(
         self,
@@ -88,6 +119,9 @@ class OneCClient:
         if fields:
             params["fields"] = fields
         return await self.get_json(f"/v1/data/{kind}/{name}", params=params)
+
+    async def get_data(self, kind: str, name: str, item_id: str) -> dict[str, Any]:
+        return await self.get_json(f"/v1/data/{kind}/{name}/{item_id}")
 
 
 def _payload(response: httpx.Response) -> Any:
