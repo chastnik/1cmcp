@@ -71,6 +71,17 @@ def call_log() -> list[dict[str, Any]]:
     return list(_CALL_LOG)
 
 
+def _remember_ref(request: Request, result: dict[str, Any]) -> None:
+    ref = result.get("ref")
+    if not ref:
+        return
+    refs = getattr(request.state, "created_refs", None)
+    if refs is None:
+        request.state.created_refs = [ref]
+    else:
+        refs.append(ref)
+
+
 def problem(status: int, code: str, title: str, detail: str) -> JSONResponse:
     return JSONResponse(
         status_code=status,
@@ -688,14 +699,30 @@ def create_mock_app() -> FastAPI:
     @app.middleware("http")
     async def audit(request: Request, call_next):  # noqa: ANN001
         started = time.perf_counter()
+        request.state.created_refs = []
         response = await call_next(request)
+        path = request.url.path
+        if path.rstrip("/") in {"/v1/health", "/v1/diag"}:
+            return response
         duration_ms = int((time.perf_counter() - started) * 1000)
+        header = request.headers.get("authorization") or request.headers.get("Authorization") or ""
+        client_id = None
+        if header.startswith("Bearer "):
+            token = header[7:].strip()
+            known = _CLIENTS.get(token)
+            if known:
+                client_id = known["id"]
+        refs = list(getattr(request.state, "created_refs", []) or [])
         _CALL_LOG.append(
             {
+                "id": str(uuid.uuid4()),
                 "method": request.method,
-                "path": request.url.path,
+                "path": path,
                 "status": response.status_code,
                 "duration_ms": duration_ms,
+                "at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "client_id": client_id,
+                "created_refs": refs,
             }
         )
         app.state.call_log = _CALL_LOG
@@ -717,6 +744,33 @@ def create_mock_app() -> FastAPI:
             version=__version__,
             time=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         )
+
+    @app.get("/v1/audit")
+    async def audit_list(
+        request: Request,
+        limit: int = Query(50, ge=1, le=200),
+        since: str | None = None,
+        path: str | None = None,
+    ) -> JSONResponse:
+        auth = _authenticate(request, scope="read")
+        if isinstance(auth, JSONResponse):
+            return auth
+        rows = [
+            {
+                "id": row["id"],
+                "method": row["method"],
+                "path": row["path"],
+                "status": row["status"],
+                "duration_ms": row["duration_ms"],
+                "at": row["at"],
+                "created_refs": list(row.get("created_refs") or []),
+            }
+            for row in reversed(_CALL_LOG)
+            if row.get("client_id") == auth["id"]
+            and (not since or str(row.get("at") or "") >= since)
+            and (not path or str(row.get("path") or "").startswith(path))
+        ]
+        return JSONResponse({"content_kind": "data", "items": rows[:limit]})
 
     @app.get("/v1/meta")
     async def list_meta(
@@ -978,6 +1032,7 @@ def create_mock_app() -> FastAPI:
         if replayed == "conflict":
             return problem(409, "idempotency_conflict", "Conflict", "Idempotency-Key уже использован с другим телом")
         if isinstance(replayed, dict):
+            _remember_ref(request, replayed)
             return JSONResponse(replayed, status_code=201)
         token = payload.get("confirm_token")
         if not token:
@@ -1029,6 +1084,7 @@ def create_mock_app() -> FastAPI:
         else:
             result = _write_result(stored)
         _WRITE.remember(auth["id"], key, result, fingerprint)
+        _remember_ref(request, result)
         return JSONResponse(result, status_code=201)
 
     @app.patch("/v1/data/{kind}/{name}/{item_id}")
@@ -1050,6 +1106,7 @@ def create_mock_app() -> FastAPI:
         if replayed == "conflict":
             return problem(409, "idempotency_conflict", "Conflict", "Idempotency-Key уже использован с другим телом")
         if isinstance(replayed, dict):
+            _remember_ref(request, replayed)
             return JSONResponse(replayed)
         collection = _COLLECTIONS.get((kind, name))
         if collection is None or item_id not in collection:
@@ -1075,6 +1132,7 @@ def create_mock_app() -> FastAPI:
             {"op": "patch", "kind": kind, "name": name, "id": item_id, "previous": previous},
         )
         _WRITE.remember(auth["id"], key, result, fingerprint)
+        _remember_ref(request, result)
         return JSONResponse(result)
 
     @app.post("/v1/data/{kind}/{name}/{item_id}/post")
@@ -1090,6 +1148,7 @@ def create_mock_app() -> FastAPI:
         if replayed == "conflict":
             return problem(409, "idempotency_conflict", "Conflict", "Idempotency-Key уже использован с другим телом")
         if isinstance(replayed, dict):
+            _remember_ref(request, replayed)
             return JSONResponse(replayed)
         if kind != "document":
             return problem(400, "bad_request", "Bad request", "Проводить можно только документы")
@@ -1127,6 +1186,7 @@ def create_mock_app() -> FastAPI:
             },
         )
         _WRITE.remember(auth["id"], key, result, fingerprint)
+        _remember_ref(request, result)
         return JSONResponse(result)
 
     @app.post("/v1/action")

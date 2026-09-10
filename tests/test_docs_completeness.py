@@ -148,6 +148,9 @@ def test_cli_flags_and_extension_fields_are_documented() -> None:
         "imagePullSecrets",
         "PYTHONUNBUFFERED",
         "gateway[otel]",
+        "/v1/audit",
+        "audit_list",
+        "СсылкиJSON",
     ):
         assert needle in text, f"в документации нет {needle!r}"
     clients = (DOCS / "admin" / "clients.md").read_text(encoding="utf-8")

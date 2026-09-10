@@ -42,7 +42,7 @@ python -m onecmcp mcp              python -m onecmcp serve :8000
 | Метод | Токен |
 |---|---|
 | `GET /v1/health`, `GET /v1/diag`, `GET /health`, `GET /ready`, `GET /diag`, `GET /guide` | не нужен (самодиагностика и плейбук) |
-| `GET /v1/meta…`, `GET /v1/data…`, `POST /v1/query`, `POST /v1/report`, `/v1/job` | `Authorization: Bearer <token>` со скоупом `read` |
+| `GET /v1/meta…`, `GET /v1/data…`, `POST /v1/query`, `POST /v1/report`, `/v1/job`, `GET /v1/audit` | `Authorization: Bearer <token>` со скоупом `read` |
 | запись, `action`, откат сессии | тот же заголовок, скоуп `write` и ACL на объект |
 
 На моке и в CI токен чтения: **`dev-token`**. Токен записи стенда: **`dev-write-token`**.
@@ -308,6 +308,7 @@ curl -sS -H "Authorization: Bearer $TOKEN" \
 | `data_post` | `kind`, `name`, `id`, `confirm_token`, `idempotency_key`, `session_id?` | проведение |
 | `action` | `name`, `arguments?` | метод из whitelist |
 | `session_rollback` | `session_id` | откат записей сессии |
+| `audit_list` | `limit=50`, `since?`, `path?` | журнал вызовов **этого** клиента; ссылки записи в `created_refs` |
 
 Пример `filter` в инструменте `data_list` (именно строка, не вложенный объект клиента, если клиент так передаёт):
 
@@ -391,7 +392,16 @@ Dify / собственный backend — тот же REST. Импорт OpenAPI
 
 ### 8.4. Аудит
 
-Регистр **Журнал вызовов**: кто (клиент), метод, путь, код ответа, длительность, момент. Сбой записи журнала ответ агенту не ломает. Разбор инцидента: фильтр по клиенту и интервалу.
+Регистр **Журнал вызовов** (`мкпЖурналВызовов`): кто (клиент), метод, путь, код ответа, длительность, момент, JSON ссылок затронутых объектов (`СсылкиJSON` → `created_refs`). Сбой записи журнала ответ агенту не ломает. `/v1/health` и `/v1/diag` в журнал не пишутся.
+
+Читать журнал своего клиента — `GET /v1/audit` (скоуп `read`) или MCP `audit_list`. Чужие клиенты не видны. Query: `limit` (1–200, умолчание 50), `since` (ISO-8601), `path` (префикс). Новые сверху. Текущий запрос журнала в свой ответ не попадает.
+
+```bash
+curl -sS -H "Authorization: Bearer $TOKEN" \
+  "$BASE/v1/audit?limit=20&path=/v1/data"
+```
+
+Разбор инцидента: фильтр по `path`/`since` и поле `created_refs` после записи.
 
 Объекты расширения в API не светятся: запрос `…/meta/catalog/мкпКлиентыИнтеграции` даёт 404.
 

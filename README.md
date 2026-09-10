@@ -233,10 +233,10 @@ flowchart LR
 
 ## Статус
 
-Фаза 5 — каталог сценариев. Фаза 6 (0.7.0) — streamable HTTP MCP, тенанты, rate limit, лимиты суммы на клиента. Ключ продукта не нужен.
+Фаза 7 (0.8.0) — журнал вызовов `GET /v1/audit` / MCP `audit_list` со ссылками созданных объектов. Фаза 6 — streamable HTTP MCP, тенанты, rate limit, лимиты суммы на клиента. Ключ продукта не нужен.
 
 - ADR, регламент clean room, чек-лист приёмки, [совместимость](docs/compatibility.md), [пилоты](docs/pilots.md)
-- OpenAPI 3.1 на весь v1 (версия контракта 0.7.0)
+- OpenAPI 3.1 на весь v1 (версия контракта 0.8.0)
 - расширение `мкпКоннектор`: Bearer-токен, интроспекция, чтение, `query`/`report`/`job`, запись/`action`/откат, `GET /v1/diag`, обработка `мкпАдминистрированиеКоннектора`
 - шлюз с REST-прокси, MCP `/mcp`, тенантами, rate limit, `GET /diag`, `GET /guide`, кэшем метаданных и моком слоя A
 - `docker-compose.yml` с healthcheck, чарт `deploy/helm/onecmcp`, пресеты [connect](docs/connect/README.md)

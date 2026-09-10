@@ -39,8 +39,8 @@ def _gateway(settings: Settings | None = None) -> TestClient:
     return TestClient(app)
 
 
-def test_version_is_070() -> None:
-    assert __version__ == "0.7.0"
+def test_version_is_at_least_070() -> None:
+    assert tuple(int(part) for part in __version__.split(".")[:2]) >= (0, 7)
 
 
 def test_parse_tenant_map_csv_and_json() -> None:
@@ -218,7 +218,7 @@ def test_extension_has_client_limits_and_version() -> None:
     data = (SRC / "CommonModules" / "мкпДанные" / "Ext" / "Module.bsl").read_text(encoding="utf-8")
     assert "ПроверитьЛимитыКлиента" in data
     version = (SRC / "Configuration.xml").read_text(encoding="utf-8")
-    assert "<Version>0.7.0</Version>" in version
+    assert "<Version>0.8.0</Version>" in version
 
 
 def test_helm_exposes_rate_limit_and_tenants() -> None:

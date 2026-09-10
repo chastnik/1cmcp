@@ -14,3 +14,4 @@
 | [0010](0010-productization-without-license.md) | Продуктизация без ключа продукта |
 | [0011](0011-scenarios-and-agent-presets.md) | Сценарии Ф5 |
 | [0012](0012-gateway-http-tenants-limits.md) | MCP HTTP, тенанты, rate limit, лимиты записи |
+| [0013](0013-audit-journal-api.md) | Журнал вызовов `GET /v1/audit` |
