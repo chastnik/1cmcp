@@ -93,6 +93,20 @@ class OneCClient:
     async def diag(self) -> dict[str, Any]:
         return await self.get_json("/v1/diag")
 
+    async def audit_list(
+        self,
+        *,
+        limit: int = 50,
+        since: str | None = None,
+        path: str | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {"limit": limit}
+        if since:
+            params["since"] = since
+        if path:
+            params["path"] = path
+        return await self.get_json("/v1/audit", params=params)
+
     async def meta_list(
         self,
         *,

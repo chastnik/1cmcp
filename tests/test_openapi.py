@@ -33,6 +33,7 @@ def test_openapi_covers_v1_surface() -> None:
         "/v1/job/{id}",
         "/v1/session/rollback",
         "/v1/diag",
+        "/v1/audit",
         "/guide",
         "/diag",
         "/mcp",

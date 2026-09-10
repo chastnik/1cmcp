@@ -30,6 +30,18 @@ async def diag_tool(client: OneCClient, settings: Settings) -> dict[str, Any]:
         return build_gateway_diag(settings, adapter_error=str(exc))
 
 
+async def audit_list_tool(
+    client: OneCClient,
+    limit: int = 50,
+    since: str | None = None,
+    path: str | None = None,
+) -> dict[str, Any]:
+    try:
+        return mark_as_data(await client.audit_list(limit=limit, since=since, path=path))
+    except AdapterError as exc:
+        return _error_payload(exc)
+
+
 async def meta_list_tool(
     client: OneCClient,
     kind: str | None = None,

@@ -10,6 +10,7 @@ from onecmcp.config import Settings
 from onecmcp.presets import mcp_instructions
 from onecmcp.tools import (
     action_tool,
+    audit_list_tool,
     data_create_tool,
     data_dry_run_tool,
     data_get_tool,
@@ -58,6 +59,16 @@ def create_mcp(
         """Самодиагностика шлюза и адаптера: версия, пресет, публикация. Без секретов и без ключа продукта."""
         async with _client(factory) as client:
             return await diag_tool(client, settings)
+
+    @mcp.tool()
+    async def audit_list(
+        limit: int = 50,
+        since: str | None = None,
+        path: str | None = None,
+    ) -> dict:
+        """Журнал вызовов текущего клиента интеграции: метод, путь, код, длительность, ссылки записи."""
+        async with _client(factory) as client:
+            return await audit_list_tool(client, limit=limit, since=since, path=path)
 
     @mcp.tool()
     async def guide(question: str) -> dict:

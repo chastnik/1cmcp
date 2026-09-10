@@ -446,6 +446,33 @@
 					</Method>
 				</ChildObjects>
 			</URLTemplate>
+			<URLTemplate uuid="7ed5a462-d291-49c3-a1c8-99b0b3db2a71">
+				<Properties>
+					<Name>Audit</Name>
+					<Synonym>
+						<v8:item>
+							<v8:lang>ru</v8:lang>
+							<v8:content>Audit</v8:content>
+						</v8:item>
+					</Synonym>
+					<Template>/v1/audit</Template>
+				</Properties>
+				<ChildObjects>
+					<Method uuid="2629973f-7225-4cdf-a4b0-9e3776fe3adc">
+						<Properties>
+							<Name>GET</Name>
+							<Synonym>
+								<v8:item>
+									<v8:lang>ru</v8:lang>
+									<v8:content>GET</v8:content>
+								</v8:item>
+							</Synonym>
+							<HTTPMethod>GET</HTTPMethod>
+							<Handler>AuditGET</Handler>
+						</Properties>
+					</Method>
+				</ChildObjects>
+			</URLTemplate>
 		</ChildObjects>
 	</HTTPService>
 </MetaDataObject>

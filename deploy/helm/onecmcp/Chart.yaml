@@ -2,5 +2,5 @@ apiVersion: v2
 name: onecmcp
 description: Шлюз 1cmcp (слой B). Протоколы MCP и REST к адаптеру 1С.
 type: application
-version: 0.7.0
-appVersion: "0.7.0"
+version: 0.8.0
+appVersion: "0.8.0"

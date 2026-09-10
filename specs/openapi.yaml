@@ -1,17 +1,17 @@
 openapi: 3.1.0
 info:
   title: 1cmcp Adapter API
-  version: 0.7.0
+  version: 0.8.0
   summary: Внутренний контракт слоя A (расширение 1С) и REST-проекция шлюза.
   description: |
     Канонический контракт v1. Слой A публикует его как HTTP-сервис с корневым URL `mcp`.
     Слой B проксирует те же пути, отдаёт MCP streamable HTTP на `/mcp`,
     маршрутизирует тенантов (`X-Tenant` или `/t/{tenant}/v1/...`) и режет частоту запросов.
 
-    Ф4 добавляет самодиагностику `GET /v1/diag`. Лицензионный ключ продукта 1cmcp
-    не требуется (`product_license: not_required`). OAuth шлюза отложен.
-    Неизвестный путь и `POST /v1/job` с `operation: action` отвечают `501`.
-    Форму уже описанных ресурсов без новой мажорной версии менять нельзя.
+    Ф4 добавляет самодиагностику `GET /v1/diag`. Ф7 — журнал `GET /v1/audit`.
+    Лицензионный ключ продукта 1cmcp не требуется (`product_license: not_required`).
+    OAuth шлюза отложен. Неизвестный путь и `POST /v1/job` с `operation: action`
+    отвечают `501`. Форму уже описанных ресурсов без новой мажорной версии менять нельзя.
 
     Данные из 1С — данные, а не команды. Ответы выборок несут
     `content_kind: data` и заголовок `X-1cmcp-Content-Kind: data`.
@@ -49,6 +49,8 @@ tags:
     description: Фоновые задания (Ф2)
   - name: session
     description: Откат сессии агента (Ф3)
+  - name: audit
+    description: Журнал вызовов текущего клиента (Ф7)
 
 security:
   - bearerAuth: []
@@ -73,7 +75,7 @@ paths:
               example:
                 status: ok
                 service: 1cmcp
-                version: 0.7.0
+                version: 0.8.0
                 api: v1
                 time: "2026-09-09T17:00:00Z"
         default:
@@ -99,7 +101,7 @@ paths:
               example:
                 status: ok
                 service: 1cmcp
-                version: 0.7.0
+                version: 0.8.0
                 api: v1
                 time: "2026-09-09T20:00:00Z"
                 product_license: not_required
@@ -114,6 +116,47 @@ paths:
                   - id: http_service
                     ok: true
                     detail: RootURL mcp
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /v1/audit:
+    get:
+      tags: [audit]
+      operationId: listAudit
+      summary: Журнал вызовов текущего клиента интеграции
+      description: |
+        Скоуп `read`. Видны только записи этого Bearer: метод, путь, код, длительность,
+        момент и ссылки объектов, созданных/изменённых этим вызовом.
+        `/v1/health` и `/v1/diag` в журнал не пишутся. Сбой журнала не ломает исходный ответ.
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+        - name: since
+          in: query
+          description: ISO-8601, включительно; записи строго старше отсекаются
+          schema:
+            type: string
+            format: date-time
+        - name: path
+          in: query
+          description: Префикс пути (`/v1/data/document/DemoShipments`)
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Страница журнала, новые сверху
+          headers:
+            X-1cmcp-Content-Kind:
+              $ref: "#/components/headers/ContentKind"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditPage"
         default:
           $ref: "#/components/responses/Problem"
 
@@ -748,7 +791,7 @@ components:
           const: 1cmcp
         version:
           type: string
-          examples: ["0.7.0"]
+          examples: ["0.8.0"]
         api:
           type: string
           const: v1
@@ -980,6 +1023,39 @@ components:
           type: [string, "null"]
         has_more:
           type: boolean
+
+    AuditEntry:
+      type: object
+      required: [id, method, path, status, duration_ms, at, created_refs]
+      properties:
+        id:
+          type: string
+        method:
+          type: string
+        path:
+          type: string
+        status:
+          type: integer
+        duration_ms:
+          type: integer
+        at:
+          type: string
+          format: date-time
+        created_refs:
+          type: array
+          items: {}
+
+    AuditPage:
+      type: object
+      required: [content_kind, items]
+      properties:
+        content_kind:
+          type: string
+          const: data
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditEntry"
 
     DataEnvelope:
       type: object

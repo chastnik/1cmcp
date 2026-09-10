@@ -44,6 +44,7 @@
 - [ ] `serve` отдаёт MCP на `/mcp`; неизвестный `X-Tenant` — `404 unknown_tenant`
 - [ ] превышение `RATE_LIMIT_PER_MINUTE` — `429 rate_limited`; `/health` не режется
 - [ ] лимит суммы клиента — `400 limit_exceeded` на записи
+- [ ] `GET /v1/audit` со скоупом `read` отдаёт только записи этого клиента; `created_refs` после записи
 
 ## Репозиторий
 
