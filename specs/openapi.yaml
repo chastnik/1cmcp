@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: 1cmcp Adapter API
-  version: 0.9.0
+  version: 0.10.0
   summary: Внутренний контракт слоя A (расширение 1С) и REST-проекция шлюза.
   description: |
     Канонический контракт v1. Слой A публикует его как HTTP-сервис с корневым URL `mcp`.
@@ -10,6 +10,7 @@ info:
 
     Ф4 добавляет самодиагностику `GET /v1/diag`. Ф7 — журнал `GET /v1/audit`.
     Ф8 — просмотр сессии `GET /v1/session/{session_id}` перед откатом.
+    Ф9 — список фоновых заданий `GET /v1/job` (без тела `result`).
     Лицензионный ключ продукта 1cmcp не требуется (`product_license: not_required`).
     OAuth шлюза отложен. Неизвестный путь и `POST /v1/job` с `operation: action`
     отвечают `501`. Форму уже описанных ресурсов без новой мажорной версии менять нельзя.
@@ -76,7 +77,7 @@ paths:
               example:
                 status: ok
                 service: 1cmcp
-                version: 0.9.0
+                version: 0.10.0
                 api: v1
                 time: "2026-09-09T17:00:00Z"
         default:
@@ -102,7 +103,7 @@ paths:
               example:
                 status: ok
                 service: 1cmcp
-                version: 0.9.0
+                version: 0.10.0
                 api: v1
                 time: "2026-09-09T20:00:00Z"
                 product_license: not_required
@@ -609,6 +610,40 @@ paths:
           $ref: "#/components/responses/Problem"
 
   /v1/job:
+    get:
+      tags: [job]
+      operationId: listJobs
+      summary: Список фоновых заданий текущего клиента (Ф9)
+      description: |
+        Скоуп `read`. Только задания этого Bearer. Чужие UUID не попадают в `items`.
+        Query: `limit` 1–200 (умолчание 50), `status` (точное значение статуса).
+        Новые сверху. В элементе нет `result` — полный результат даёт `GET /v1/job/{id}`.
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+        - name: status
+          in: query
+          description: Точный статус (`queued`, `running`, `succeeded`, `failed`)
+          schema:
+            type: string
+            enum: [queued, running, succeeded, failed]
+      responses:
+        "200":
+          description: Страница заданий, новые сверху
+          headers:
+            X-1cmcp-Content-Kind:
+              $ref: "#/components/headers/ContentKind"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobListPage"
+        default:
+          $ref: "#/components/responses/Problem"
     post:
       tags: [job]
       operationId: startJob
@@ -636,6 +671,9 @@ paths:
       tags: [job]
       operationId: getJob
       summary: Статус и результат фоновой операции (Ф2)
+      description: |
+        Скоуп `read`. Чужое задание этого контура — `404`, как несуществующее.
+        Полный `result` только здесь, не в `GET /v1/job`.
       parameters:
         - $ref: "#/components/parameters/IdPath"
       responses:
@@ -824,7 +862,7 @@ components:
           const: 1cmcp
         version:
           type: string
-          examples: ["0.9.0"]
+          examples: ["0.10.0"]
         api:
           type: string
           const: v1
@@ -1286,11 +1324,45 @@ components:
         status:
           type: string
           enum: [queued, running, succeeded, failed]
+        operation:
+          type: string
+        at:
+          type: string
+          format: date-time
         result:
           type: object
           additionalProperties: true
         error:
           $ref: "#/components/schemas/Problem"
+
+    JobListItem:
+      type: object
+      additionalProperties: false
+      required: [job_id, status, operation, at]
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [queued, running, succeeded, failed]
+        operation:
+          type: string
+        at:
+          type: string
+          format: date-time
+
+    JobListPage:
+      type: object
+      required: [content_kind, items]
+      properties:
+        content_kind:
+          type: string
+          const: data
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/JobListItem"
 
     SessionPage:
       type: object

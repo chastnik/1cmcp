@@ -42,7 +42,7 @@ python -m onecmcp mcp              python -m onecmcp serve :8000
 | Метод | Токен |
 |---|---|
 | `GET /v1/health`, `GET /v1/diag`, `GET /health`, `GET /ready`, `GET /diag`, `GET /guide` | не нужен (самодиагностика и плейбук) |
-| `GET /v1/meta…`, `GET /v1/data…`, `POST /v1/query`, `POST /v1/report`, `/v1/job`, `GET /v1/audit` | `Authorization: Bearer <token>` со скоупом `read` |
+| `GET /v1/meta…`, `GET /v1/data…`, `POST /v1/query`, `POST /v1/report`, `POST /v1/job`, `GET /v1/job`, `GET /v1/job/{id}`, `GET /v1/audit` | `Authorization: Bearer <token>` со скоупом `read` |
 | запись, `action`, откат сессии | тот же заголовок, скоуп `write` и ACL на объект |
 
 На моке и в CI токен чтения: **`dev-token`**. Токен записи стенда: **`dev-write-token`**.
@@ -301,7 +301,8 @@ curl -sS -H "Authorization: Bearer $TOKEN" \
 | `data_get` | `kind`, `name`, `id` | один объект |
 | `report` | `name`, `parameters?`, `format=json`, `variant?`, `async_mode?` | отчёт СКД; `parameters` — JSON-строка |
 | `query` | `named_query` или `text`, `parameters?`, `limit?`, `async_mode?` | именованный запрос или выборка после валидатора |
-| `job_get` | `id` | статус фоновой операции |
+| `job_list` | `limit=50`, `status?` | фоновые задания **этого** клиента; без `result` — его даёт `job_get` |
+| `job_get` | `id` | статус и результат фоновой операции; чужой `id` — как отсутствующий |
 | `data_dry_run` | `kind`, `name`, `item` (JSON), `post?` | предпросмотр и `confirm_token` |
 | `data_create` | `kind`, `name`, `item`, `confirm_token`, `idempotency_key`, `session_id?`, `post?` | создание |
 | `data_patch` | `kind`, `name`, `id`, `item`, `confirm_token`, `idempotency_key`, `session_id?` | изменение |
@@ -346,10 +347,13 @@ curl -sS -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"named_query":"DemoShipmentsByPeriod","parameters":{"BeginDate":"2026-08-01","EndDate":"2026-08-31"},"async":true}' \
   "$BASE/v1/query"
 # 202 {"job_id":"…","status":"queued"}
+curl -sS -H "Authorization: Bearer $TOKEN" "$BASE/v1/job"
 curl -sS -H "Authorization: Bearer $TOKEN" "$BASE/v1/job/<job_id>"
 ```
 
-Именованные запросы в живой 1С заводятся в справочнике **Именованные запросы** (`мкпИменованныеЗапросы`). Состояние фона — регистр **Состояния заданий**.
+Список — `GET /v1/job` (MCP `job_list`): скоуп `read`, только задания этого клиента, `limit` 1–200, необязательный `status`. Новые сверху. В `items` нет `result`. Чужой `job_id` на карточке — `404`.
+
+Именованные запросы в живой 1С заводятся в справочнике **Именованные запросы** (`мкпИменованныеЗапросы`). Состояние фона — регистр **Состояния заданий** (`мкпСостоянияЗаданий`, ресурс `Клиент`).
 
 ---
 

@@ -218,7 +218,7 @@ def test_extension_has_client_limits_and_version() -> None:
     data = (SRC / "CommonModules" / "мкпДанные" / "Ext" / "Module.bsl").read_text(encoding="utf-8")
     assert "ПроверитьЛимитыКлиента" in data
     version = (SRC / "Configuration.xml").read_text(encoding="utf-8")
-    assert "<Version>0.9.0</Version>" in version
+    assert "<Version>0.10.0</Version>" in version
 
 
 def test_helm_exposes_rate_limit_and_tenants() -> None:

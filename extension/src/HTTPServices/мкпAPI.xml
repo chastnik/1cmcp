@@ -282,6 +282,19 @@
 							<Handler>JobPOST</Handler>
 						</Properties>
 					</Method>
+					<Method uuid="b14e591f-621a-4d70-a95e-4f2d14cbb949">
+						<Properties>
+							<Name>GET</Name>
+			<Synonym>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>GET</v8:content>
+				</v8:item>
+			</Synonym>
+							<HTTPMethod>GET</HTTPMethod>
+							<Handler>JobListGET</Handler>
+						</Properties>
+					</Method>
 				</ChildObjects>
 			</URLTemplate>
 			<URLTemplate uuid="d6537835-a78b-4dba-9567-bdeea9e3cf38">
