@@ -665,13 +665,15 @@ def _report_result(payload: dict[str, Any]) -> dict[str, Any] | JSONResponse:
     }
 
 
-def _store_job(operation: str, result: dict[str, Any]) -> dict[str, Any]:
+def _store_job(operation: str, result: dict[str, Any], client_id: str) -> dict[str, Any]:
     job_id = str(uuid.uuid4())
     record = {
         "job_id": job_id,
         "status": "succeeded",
         "operation": operation,
         "result": result,
+        "client_id": client_id,
+        "at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
     _JOBS[job_id] = record
     return {"job_id": job_id, "status": "queued"}
@@ -907,9 +909,11 @@ def create_mock_app() -> FastAPI:
             return problem(400, "bad_request", "Bad request", "Некорректный JSON")
         return _read_json_body(loaded)
 
-    def _maybe_async(payload: dict[str, Any], operation: str, result: dict[str, Any]) -> JSONResponse:
+    def _maybe_async(
+        payload: dict[str, Any], operation: str, result: dict[str, Any], client_id: str
+    ) -> JSONResponse:
         if payload.get("async") is True:
-            accepted = _store_job(operation, result)
+            accepted = _store_job(operation, result, client_id)
             return JSONResponse(accepted, status_code=202)
         return JSONResponse(result, headers=data_headers())
 
@@ -924,7 +928,7 @@ def create_mock_app() -> FastAPI:
         result = _query_result(payload)
         if isinstance(result, JSONResponse):
             return result
-        return _maybe_async(payload, "query", result)
+        return _maybe_async(payload, "query", result, auth["id"])
 
     @app.post("/v1/report")
     async def run_report(request: Request) -> JSONResponse:
@@ -937,7 +941,7 @@ def create_mock_app() -> FastAPI:
         result = _report_result(payload)
         if isinstance(result, JSONResponse):
             return result
-        return _maybe_async(payload, "report", result)
+        return _maybe_async(payload, "report", result, auth["id"])
 
     @app.post("/v1/job")
     async def start_job(request: Request) -> JSONResponse:
@@ -966,8 +970,30 @@ def create_mock_app() -> FastAPI:
             return problem(400, "bad_request", "Bad request", "operation: query или report")
         if isinstance(result, JSONResponse):
             return result
-        accepted = _store_job(str(operation), result)
+        accepted = _store_job(str(operation), result, auth["id"])
         return JSONResponse(accepted, status_code=202)
+
+    @app.get("/v1/job")
+    async def list_jobs(
+        request: Request,
+        limit: int = Query(50, ge=1, le=200),
+        status: str | None = None,
+    ) -> JSONResponse:
+        auth = _authenticate(request, scope="read")
+        if isinstance(auth, JSONResponse):
+            return auth
+        rows = [
+            {
+                "job_id": row["job_id"],
+                "status": row["status"],
+                "operation": row.get("operation") or "",
+                "at": row.get("at") or "",
+            }
+            for row in reversed(list(_JOBS.values()))
+            if row.get("client_id") == auth["id"]
+            and (not status or row.get("status") == status)
+        ]
+        return JSONResponse({"content_kind": "data", "items": rows[:limit]})
 
     @app.get("/v1/job/{job_id}")
     async def get_job(job_id: str, request: Request) -> JSONResponse:
@@ -975,9 +1001,10 @@ def create_mock_app() -> FastAPI:
         if isinstance(auth, JSONResponse):
             return auth
         record = _JOBS.get(job_id)
-        if record is None:
+        if record is None or record.get("client_id") != auth["id"]:
             return problem(404, "not_found", "Not found", "Задание не найдено")
-        return JSONResponse(record)
+        payload = {key: value for key, value in record.items() if key != "client_id"}
+        return JSONResponse(payload)
 
     def _guard_write(request: Request, kind: str, name: str, operation: str = "write"):
         auth = _authenticate(request, scope="write")

@@ -25,6 +25,7 @@
 | GET | `/v1/meta`, `/v1/meta/search`, `/v1/meta/{kind}/{name}` | `read` |
 | GET | `/v1/data/{kind}/{name}`, `.../{id}` | `read` |
 | POST | `/v1/query`, `/v1/report`, `/v1/job` | `read` |
+| GET | `/v1/job` | `read` |
 | GET | `/v1/job/{id}` | `read` |
 | POST | `/v1/data/{kind}/{name}/dry-run` | `write` |
 | POST | `/v1/data/{kind}/{name}` | `write` + confirm |
@@ -45,6 +46,6 @@
 
 Имена совпадают по смыслу с HTTP:
 
-`health`, `diag`, `guide`, `meta_list`, `meta_search`, `meta_describe`, `data_list`, `data_get`, `report`, `query`, `job_get`, `data_dry_run`, `data_create`, `data_patch`, `data_post`, `action`, `session_rollback`, `audit_list`, `session_get`.
+`health`, `diag`, `guide`, `meta_list`, `meta_search`, `meta_describe`, `data_list`, `data_get`, `report`, `query`, `job_list`, `job_get`, `data_dry_run`, `data_create`, `data_patch`, `data_post`, `action`, `session_rollback`, `audit_list`, `session_get`.
 
 Порядок работы агента — вкладка [Пользование](../usage.md).

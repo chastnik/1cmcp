@@ -21,6 +21,7 @@ from onecmcp.tools import (
     guide_tool,
     health_tool,
     job_get_tool,
+    job_list_tool,
     meta_describe_tool,
     meta_list_tool,
     meta_search_tool,
@@ -163,6 +164,12 @@ def create_mcp(
                 limit=limit,
                 async_mode=async_mode,
             )
+
+    @mcp.tool()
+    async def job_list(limit: int = 50, status: str | None = None) -> dict:
+        """Список фоновых заданий текущего клиента. Без тела результата — его даёт job_get."""
+        async with _client(factory) as client:
+            return await job_list_tool(client, limit=limit, status=status)
 
     @mcp.tool()
     async def job_get(id: str) -> dict:

@@ -16,3 +16,4 @@
 | [0012](0012-gateway-http-tenants-limits.md) | MCP HTTP, тенанты, rate limit, лимиты записи |
 | [0013](0013-audit-journal-api.md) | Журнал вызовов `GET /v1/audit` |
 | [0014](0014-session-preview.md) | Просмотр сессии перед откатом |
+| [0015](0015-job-list.md) | Список заданий `GET /v1/job` |

@@ -46,13 +46,13 @@
 
 ## Helm `deploy/helm/onecmcp`
 
-Чарт версии приложения совпадает с пакетом (`0.9.0`). Ключа продукта в values нет.
+Чарт версии приложения совпадает с пакетом (`0.10.0`). Ключа продукта в values нет.
 
 | Ключ values.yaml | Куда попадает | Умолчание | Как изменить |
 |---|---|---|---|
 | `replicaCount` | число подов | `1` | `helm upgrade --set replicaCount=2` |
 | `image.repository` | образ | `onecmcp` | свой registry |
-| `image.tag` | тег образа | `0.9.0` | тег сборки |
+| `image.tag` | тег образа | `0.10.0` | тег сборки |
 | `image.pullPolicy` | политика pull | `IfNotPresent` | |
 | `imagePullSecrets` | secrets pull | `[]` | private registry |
 | `nameOverride` | имя чарта | `""` | |
@@ -76,7 +76,7 @@
 | `gateway.otelExporterOtlpEndpoint` | `OTEL_EXPORTER_OTLP_ENDPOINT` | `""` | |
 | `gateway.mcpHttpPath` | `MCP_HTTP_PATH` | `/mcp` | |
 
-Чарт: `Chart.yaml` `version` / `appVersion` = `0.9.0` (совпадает с пакетом `onecmcp`). Probes зашиты в шаблон: liveness `GET /health`, readiness `GET /ready` (не выносятся в values). Secret `onec-token` берётся из `onec.token`.
+Чарт: `Chart.yaml` `version` / `appVersion` = `0.10.0` (совпадает с пакетом `onecmcp`). Probes зашиты в шаблон: liveness `GET /health`, readiness `GET /ready` (не выносятся в values). Secret `onec-token` берётся из `onec.token`.
 
 ## Docker Compose (`docker-compose.yml`)
 
@@ -114,7 +114,7 @@
 | `мкпДействияИнтеграции` | `ИмяДействия`, `Разрешено`, `ВидОбъекта`, `ИмяОбъекта` | карточка; `Разрешено = нет` → не 200 на `/v1/action` |
 | `мкпСемантическийСловарь` | `ВидОбъекта`, `ИмяОбъекта`, `ИмяПоля`, `Синонимы`, `Описание`, `Примеры` | записи регистра; шлюз подмешивает пресет |
 
-Служебные регистры консультант **не заполняет** — их пишет адаптер. `мкпЖурналВызовов`: `Идентификатор`, `Клиент`, `Метод`, `Путь`, `КодОтвета`, `ДлительностьМс`, `Момент`, `СсылкиJSON` (JSON-массив ссылок, в API — `created_refs` у `GET /v1/audit`), `Сессия` (`X-Session-Id`, в API — `session_id`). `мкпОперацииСессии` хранит `Клиент` владельца; просмотр — `GET /v1/session/{id}`. Остальные: `мкпКлючиИдемпотентности`, `мкпТокеныПодтверждения`, `мкпСостоянияЗаданий`.
+Служебные регистры консультант **не заполняет** — их пишет адаптер. `мкпЖурналВызовов`: `Идентификатор`, `Клиент`, `Метод`, `Путь`, `КодОтвета`, `ДлительностьМс`, `Момент`, `СсылкиJSON` (JSON-массив ссылок, в API — `created_refs` у `GET /v1/audit`), `Сессия` (`X-Session-Id`, в API — `session_id`). `мкпОперацииСессии` хранит `Клиент` владельца; просмотр — `GET /v1/session/{id}`. `мкпСостоянияЗаданий` хранит `Клиент` владельца; список — `GET /v1/job`, карточка — `GET /v1/job/{id}` (чужое — 404). Остальные: `мкпКлючиИдемпотентности`, `мкпТокеныПодтверждения`.
 
 ## Стендовые токены мока
 
@@ -150,4 +150,4 @@
 | `pip install -e "gateway[dev]"` | pytest, coverage, openapi-spec-validator, pyyaml |
 | `pip install -e "gateway[otel]"` | SDK + OTLP HTTP exporter; без extra спаны no-op даже при заданном endpoint |
 
-Версия пакета: **0.9.0** (`gateway/pyproject.toml`). Ключа продукта нет.
+Версия пакета: **0.10.0** (`gateway/pyproject.toml`). Ключа продукта нет.

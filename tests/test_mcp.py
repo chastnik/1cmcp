@@ -23,6 +23,7 @@ def test_mcp_registers_discovery_tools() -> None:
         "data_get",
         "report",
         "query",
+        "job_list",
         "job_get",
         "data_dry_run",
         "data_create",

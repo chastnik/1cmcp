@@ -175,6 +175,17 @@ async def report_tool(
         return _error_payload(exc)
 
 
+async def job_list_tool(
+    client: OneCClient,
+    limit: int = 50,
+    status: str | None = None,
+) -> dict[str, Any]:
+    try:
+        return mark_as_data(await client.list_jobs(limit=limit, status=status))
+    except AdapterError as exc:
+        return _error_payload(exc)
+
+
 async def job_get_tool(client: OneCClient, job_id: str) -> dict[str, Any]:
     try:
         payload = await client.get_job(job_id)

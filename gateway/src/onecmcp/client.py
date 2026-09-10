@@ -176,6 +176,12 @@ class OneCClient:
     async def start_job(self, operation: str, payload: dict[str, Any] | None = None) -> tuple[int, dict[str, Any]]:
         return await self.post_json("/v1/job", json={"operation": operation, "payload": payload or {}})
 
+    async def list_jobs(self, *, limit: int = 50, status: str | None = None) -> dict[str, Any]:
+        params: dict[str, Any] = {"limit": limit}
+        if status:
+            params["status"] = status
+        return await self.get_json("/v1/job", params=params)
+
     async def get_job(self, job_id: str) -> dict[str, Any]:
         return await self.get_json(f"/v1/job/{job_id}")
 

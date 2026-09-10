@@ -292,7 +292,7 @@ curl -sS "http://1c-web/ut11/hs/mcp/v1/health"
 {
   "status": "ok",
   "service": "1cmcp",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "api": "v1",
   "time": "2026-09-09T18:00:00Z"
 }
@@ -404,7 +404,7 @@ http://127.0.0.1:8000/openapi.yaml
 
 Для живой 1С поставьте `ONEC_BASE_URL` как в `.env` шлюза и **боевой** токен.
 
-Перезапустите Claude Desktop. В списке MCP-серверов должен появиться `1cmcp` с инструментами `health`, `diag`, `guide`, `meta_*`, `data_*`, `report`, `query`, `job_get`, `action`, `session_rollback`.
+Перезапустите Claude Desktop. В списке MCP-серверов должен появиться `1cmcp` с инструментами `health`, `diag`, `guide`, `meta_*`, `data_*`, `report`, `query`, `job_list`, `job_get`, `action`, `session_rollback`.
 
 ### 6.2. Claude Code / Cursor
 
