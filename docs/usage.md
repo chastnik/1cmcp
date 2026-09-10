@@ -308,7 +308,8 @@ curl -sS -H "Authorization: Bearer $TOKEN" \
 | `data_post` | `kind`, `name`, `id`, `confirm_token`, `idempotency_key`, `session_id?` | проведение |
 | `action` | `name`, `arguments?` | метод из whitelist |
 | `session_rollback` | `session_id` | откат записей сессии |
-| `audit_list` | `limit=50`, `since?`, `path?` | журнал вызовов **этого** клиента; ссылки записи в `created_refs` |
+| `session_get` | `session_id` | операции сессии этого клиента до отката |
+| `audit_list` | `limit=50`, `since?`, `path?`, `session?` | журнал вызовов **этого** клиента; ссылки записи в `created_refs` |
 
 Пример `filter` в инструменте `data_list` (именно строка, не вложенный объект клиента, если клиент так передаёт):
 

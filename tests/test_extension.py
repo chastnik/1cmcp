@@ -158,6 +158,7 @@ def test_http_service_health_and_session_reuse() -> None:
     assert "/v1/data/{kind}/{name}/{id}/post" in templates
     assert "/v1/action" in templates
     assert "/v1/session/rollback" in templates
+    assert "/v1/session/{session_id}" in templates
     assert "/v1/diag" in templates
     assert "/v1/audit" in templates
     handlers = [
@@ -217,7 +218,7 @@ def test_uuids_are_unique() -> None:
 def test_configuration_version_and_phase4_rights() -> None:
     tree = ET.parse(SRC / "Configuration.xml")
     props = tree.find(f"{MD}Configuration/{MD}Properties")
-    assert props.findtext(f"{MD}Version") == "0.8.0"
+    assert props.findtext(f"{MD}Version") == "0.9.0"
     rights = (SRC / "Roles" / "мкпДоступКоннектора" / "Ext" / "Rights.xml").read_text(
         encoding="utf-8"
     )

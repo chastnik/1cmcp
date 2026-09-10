@@ -191,15 +191,39 @@ class WriteEngine:
             return "conflict"
         return record["result"]
 
-    def track(self, session_id: str | None, event: dict[str, Any]) -> None:
+    def track(self, session_id: str | None, event: dict[str, Any], *, client_id: str | None = None) -> None:
         if not session_id:
             return
-        self.sessions.setdefault(session_id, []).append(event)
+        payload = dict(event)
+        if client_id is not None:
+            payload["client_id"] = client_id
+        self.sessions.setdefault(session_id, []).append(payload)
 
-    def rollback(self, session_id: str) -> list[dict[str, str]]:
-        events = list(reversed(self.sessions.get(session_id) or []))
+    def peek(self, session_id: str, client_id: str) -> list[dict[str, str]]:
+        items: list[dict[str, str]] = []
+        for event in self.sessions.get(session_id) or []:
+            if event.get("client_id") != client_id:
+                continue
+            items.append(
+                {
+                    "op": str(event["op"]),
+                    "kind": str(event["kind"]),
+                    "name": str(event["name"]),
+                    "id": str(event["id"]),
+                }
+            )
+        return items
+
+    def rollback(self, session_id: str, client_id: str | None = None) -> list[dict[str, str]]:
+        stored = list(self.sessions.get(session_id) or [])
+        if client_id is None:
+            to_undo = list(reversed(stored))
+            remaining: list[dict[str, Any]] = []
+        else:
+            to_undo = [event for event in reversed(stored) if event.get("client_id") == client_id]
+            remaining = [event for event in stored if event.get("client_id") != client_id]
         undone: list[dict[str, str]] = []
-        for event in events:
+        for event in to_undo:
             collection = self.collections.get((event["kind"], event["name"]))
             if collection is None:
                 continue
@@ -214,7 +238,7 @@ class WriteEngine:
             elif event["op"] == "post" and item_id in collection:
                 collection[item_id]["Posted"] = bool(event.get("previous_posted", False))
                 undone.append(collection[item_id]["ref"])
-        self.sessions[session_id] = []
+        self.sessions[session_id] = remaining
         return undone
 
 

@@ -722,6 +722,9 @@ def create_mock_app() -> FastAPI:
                 "duration_ms": duration_ms,
                 "at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "client_id": client_id,
+                "session_id": request.headers.get("x-session-id")
+                or request.headers.get("X-Session-Id")
+                or "",
                 "created_refs": refs,
             }
         )
@@ -751,6 +754,7 @@ def create_mock_app() -> FastAPI:
         limit: int = Query(50, ge=1, le=200),
         since: str | None = None,
         path: str | None = None,
+        session: str | None = None,
     ) -> JSONResponse:
         auth = _authenticate(request, scope="read")
         if isinstance(auth, JSONResponse):
@@ -763,12 +767,14 @@ def create_mock_app() -> FastAPI:
                 "status": row["status"],
                 "duration_ms": row["duration_ms"],
                 "at": row["at"],
+                "session_id": row.get("session_id") or "",
                 "created_refs": list(row.get("created_refs") or []),
             }
             for row in reversed(_CALL_LOG)
             if row.get("client_id") == auth["id"]
             and (not since or str(row.get("at") or "") >= since)
             and (not path or str(row.get("path") or "").startswith(path))
+            and (not session or str(row.get("session_id") or "") == session)
         ]
         return JSONResponse({"content_kind": "data", "items": rows[:limit]})
 
@@ -1061,7 +1067,11 @@ def create_mock_app() -> FastAPI:
             return problem(404, "not_found", "Not found", f"Нет выборки {kind}/{name}")
         collection[stored["id"]] = stored
         session = _session_id(request)
-        _WRITE.track(session, {"op": "create", "kind": kind, "name": name, "id": stored["id"]})
+        _WRITE.track(
+            session,
+            {"op": "create", "kind": kind, "name": name, "id": stored["id"]},
+            client_id=auth["id"],
+        )
         want_post = bool(payload.get("post") or consumed.get("post"))
         if want_post:
             errors = posting_check(stored)
@@ -1079,6 +1089,7 @@ def create_mock_app() -> FastAPI:
                         "id": stored["id"],
                         "previous_posted": previous_posted,
                     },
+                    client_id=auth["id"],
                 )
                 result = _write_result(stored)
         else:
@@ -1130,6 +1141,7 @@ def create_mock_app() -> FastAPI:
         _WRITE.track(
             _session_id(request),
             {"op": "patch", "kind": kind, "name": name, "id": item_id, "previous": previous},
+            client_id=auth["id"],
         )
         _WRITE.remember(auth["id"], key, result, fingerprint)
         _remember_ref(request, result)
@@ -1184,6 +1196,7 @@ def create_mock_app() -> FastAPI:
                 "id": item_id,
                 "previous_posted": previous_posted,
             },
+            client_id=auth["id"],
         )
         _WRITE.remember(auth["id"], key, result, fingerprint)
         _remember_ref(request, result)
@@ -1221,12 +1234,26 @@ def create_mock_app() -> FastAPI:
                 "id": item_id,
                 "previous_posted": previous_posted,
             },
+            client_id=auth["id"],
         )
         return JSONResponse(
             {
                 "name": "DemoPostShipment",
                 "posted": True,
                 "ref": collection[item_id]["ref"],
+            }
+        )
+
+    @app.get("/v1/session/{session_id}")
+    async def session_get(session_id: str, request: Request) -> JSONResponse:
+        auth = _authenticate(request, scope="read")
+        if isinstance(auth, JSONResponse):
+            return auth
+        return JSONResponse(
+            {
+                "content_kind": "data",
+                "session_id": session_id,
+                "items": _WRITE.peek(session_id, auth["id"]),
             }
         )
 
@@ -1241,7 +1268,7 @@ def create_mock_app() -> FastAPI:
         session = payload.get("session_id")
         if not session:
             return problem(400, "bad_request", "Bad request", "Нужен session_id")
-        undone = _WRITE.rollback(str(session))
+        undone = _WRITE.rollback(str(session), client_id=auth["id"])
         return JSONResponse({"session_id": session, "undone": undone})
 
     @app.api_route("/v1/{path:path}", methods=["GET", "POST", "PATCH", "PUT", "DELETE"])
