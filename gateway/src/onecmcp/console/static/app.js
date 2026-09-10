@@ -212,8 +212,8 @@ async function renderAdmin() {
     <form class="card" id="ops-form">
       <h2>Операторы консоли</h2>
       <ul>${people}</ul>
-      <label class="field"><span>Новый логин ${helpBtn("Учётка входа в эту веб-консоль, не пользователь информационной базы 1С.")}</span><input name="login" required minlength="2"></label>
-      <label class="field"><span>Пароль ${helpBtn("Минимум 8 символов. Хранится как PBKDF2-хеш в console.json.")}</span><input name="password" type="password" required minlength="8"></label>
+      <label class="field"><span>Новый логин ${helpBtn("Учётка входа в эту веб-консоль, не пользователь информационной базы 1С.")}</span><input id="new-operator-login" name="login" required minlength="2" autocomplete="off"></label>
+      <label class="field"><span>Пароль ${helpBtn("Минимум 8 символов. Хранится как PBKDF2-хеш в console.json.")}</span><input id="new-operator-password" name="password" type="password" required minlength="8" autocomplete="new-password"></label>
       <button type="submit">Завести оператора</button>
     </form>
     <p><button type="button" class="secondary" id="logout">Выйти</button></p>`;

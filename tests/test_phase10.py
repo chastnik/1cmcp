@@ -55,6 +55,7 @@ def test_console_static_and_help_markup() -> None:
     assert "сохранён, пустое — не менять" in js
     assert 'value="сохранён"' not in js
     assert "Введите токен первого входа" in js
+    assert 'id="new-operator-login"' in js
 
 
 def test_console_home_and_catalog(tmp_path: Path) -> None:
