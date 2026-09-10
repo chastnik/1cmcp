@@ -39,7 +39,13 @@ def test_configuration_is_addon_with_prefix() -> None:
     assert props.findtext(f"{MD}NamePrefix") == PREFIX
     assert props.findtext(f"{MD}ConfigurationExtensionPurpose") == "AddOn"
     assert props.findtext(f"{MD}ConfigurationExtensionCompatibilityMode") == "Version8_3_20"
-    assert props.findtext(f"{MD}Vendor") == "Первый Бит"
+    assert props.findtext(f"{MD}Vendor") == "Стас Чашин"
+    copyright = props.find(f"{MD}Copyright")
+    assert copyright is not None
+    copyright_text = ET.tostring(copyright, encoding="unicode")
+    assert "Стас Чашин" in copyright_text
+    assert "Stas@Chashin.pro" in copyright_text
+    assert props.findtext(f"{MD}VendorInformationAddress") == "mailto:Stas@Chashin.pro"
     children = [
         (child.tag.removeprefix(MD), (child.text or "").strip())
         for child in tree.find(f"{MD}Configuration/{MD}ChildObjects")
@@ -209,7 +215,7 @@ def test_uuids_are_unique() -> None:
 def test_configuration_version_and_phase4_rights() -> None:
     tree = ET.parse(SRC / "Configuration.xml")
     props = tree.find(f"{MD}Configuration/{MD}Properties")
-    assert props.findtext(f"{MD}Version") == "0.6.0"
+    assert props.findtext(f"{MD}Version") == "0.7.0"
     rights = (SRC / "Roles" / "мкпДоступКоннектора" / "Ext" / "Rights.xml").read_text(
         encoding="utf-8"
     )
@@ -240,6 +246,7 @@ def test_phase1_modules_export_expected_entrypoints() -> None:
     )
     assert "Функция КлиентПоЗапросу" in security
     assert "Функция ЭтоСлужебныйОбъект" in security
+    assert "Функция ПроверитьЛимитыКлиента" in security
     data = (SRC / "CommonModules" / "мкпДанные" / "Ext" / "Module.bsl").read_text(encoding="utf-8")
     assert "Функция Список" in data
     assert "Функция ПолучитьПоИд" in data

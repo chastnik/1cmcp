@@ -3,7 +3,7 @@ replicaCount: 1
 
 image:
   repository: onecmcp
-  tag: "0.6.0"
+  tag: "0.7.0"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -31,4 +31,9 @@ gateway:
   host: 0.0.0.0
   port: 8000
   tenant: default
+  # CSV id=url или JSON. Пусто — только TENANT + ONEC_BASE_URL.
+  tenants: ""
   metaCacheTtlSeconds: 60
+  rateLimitPerMinute: 120
+  otelExporterOtlpEndpoint: ""
+  mcpHttpPath: /mcp

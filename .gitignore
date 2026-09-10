@@ -23,8 +23,8 @@ venv/
 .ruff_cache/
 .coverage
 coverage.xml
-htmlcov/
-*.egg-info/
+site/
+.cache/
 
 # --- Node ---
 node_modules/

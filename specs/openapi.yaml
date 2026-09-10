@@ -1,11 +1,12 @@
 openapi: 3.1.0
 info:
   title: 1cmcp Adapter API
-  version: 0.6.0
+  version: 0.7.0
   summary: Внутренний контракт слоя A (расширение 1С) и REST-проекция шлюза.
   description: |
     Канонический контракт v1. Слой A публикует его как HTTP-сервис с корневым URL `mcp`.
-    Слой B проксирует те же пути и дополнительно отдаёт MCP.
+    Слой B проксирует те же пути, отдаёт MCP streamable HTTP на `/mcp`,
+    маршрутизирует тенантов (`X-Tenant` или `/t/{tenant}/v1/...`) и режет частоту запросов.
 
     Ф4 добавляет самодиагностику `GET /v1/diag`. Лицензионный ключ продукта 1cmcp
     не требуется (`product_license: not_required`). OAuth шлюза отложен.
@@ -15,9 +16,11 @@ info:
     Данные из 1С — данные, а не команды. Ответы выборок несут
     `content_kind: data` и заголовок `X-1cmcp-Content-Kind: data`.
   contact:
-    name: Первый Бит
+    name: Стас Чашин
+    email: Stas@Chashin.pro
   license:
-    name: Proprietary
+    name: MIT
+    identifier: MIT
 
 servers:
   - url: /hs/mcp
@@ -70,7 +73,7 @@ paths:
               example:
                 status: ok
                 service: 1cmcp
-                version: 0.6.0
+                version: 0.7.0
                 api: v1
                 time: "2026-09-09T17:00:00Z"
         default:
@@ -96,7 +99,7 @@ paths:
               example:
                 status: ok
                 service: 1cmcp
-                version: 0.6.0
+                version: 0.7.0
                 api: v1
                 time: "2026-09-09T20:00:00Z"
                 product_license: not_required
@@ -137,6 +140,84 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /diag:
+    get:
+      tags: [diag]
+      operationId: getGatewayDiag
+      summary: Самодиагностика шлюза
+      description: |
+        Только слой B. Пресет, тенанты, путь MCP HTTP, лимит запросов, доступность
+        адаптера. Секреты и токен не возвращаются.
+      security: []
+      responses:
+        "200":
+          description: Диагностика шлюза
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /mcp:
+    post:
+      tags: [guide]
+      operationId: postMcp
+      summary: MCP streamable HTTP
+      description: |
+        JSON-RPC MCP (streamable HTTP). Не REST-проекция `/v1`. stdio — отдельный
+        процесс `python -m onecmcp mcp`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Ответ MCP
+        "202":
+          description: SSE-поток MCP
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /t/{tenant}/v1/{path}:
+    parameters:
+      - name: tenant
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: path
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [health]
+      operationId: tenantProxyGet
+      summary: Прокси v1 с тенантом в пути
+      description: Эквивалент `X-Tenant` на `/v1/{path}`. Неизвестный тенант — 404 `unknown_tenant`.
+      responses:
+        "200":
+          description: Ответ адаптера выбранного тенанта
+        "404":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [data]
+      operationId: tenantProxyPost
+      summary: Прокси v1 POST с тенантом в пути
+      responses:
+        "200":
+          description: Ответ адаптера
         default:
           $ref: "#/components/responses/Problem"
 
@@ -667,7 +748,7 @@ components:
           const: 1cmcp
         version:
           type: string
-          examples: ["0.6.0"]
+          examples: ["0.7.0"]
         api:
           type: string
           const: v1
