@@ -2,7 +2,7 @@
 
 Пользователь спрашивает «покажи отчёт по продажам за август», а в метаданных УТ это `РеализацияТоваровУслуг`. Чтобы не плодить сотни MCP-инструментов и не заставлять консультанта заполнять словарь под каждый вопрос, в шлюзе лежат **пресеты** и один инструмент **`guide`**.
 
-Подробный сценарий для агента: [`skills/1cmcp-typical/SKILL.md`](https://github.com/chastnik/1cmcp/blob/cursor/phase6-gateway-http-e909/skills/1cmcp-typical/SKILL.md). Решение: [ADR-0007](adr/0007-typical-presets-and-guide.md).
+Подробный сценарий для агента: [`skills/1cmcp-typical/SKILL.md`](https://github.com/chastnik/1cmcp/blob/main/skills/1cmcp-typical/SKILL.md). Решение: [ADR-0007](adr/0007-typical-presets-and-guide.md).
 
 ## Что это не делает
 

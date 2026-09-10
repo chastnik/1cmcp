@@ -50,8 +50,6 @@ git clone https://github.com/chastnik/1cmcp.git
 cd 1cmcp
 ```
 
-Рабочая ветка фазы 4 — `cursor/phase4-productization-e909`, пока PR открыт.
-
 Структура, которая нужна при установке:
 
 ```

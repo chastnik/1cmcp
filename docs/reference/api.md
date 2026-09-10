@@ -1,6 +1,6 @@
 # HTTP API и MCP-инструменты
 
-Контракт: [`specs/openapi.yaml`](https://github.com/chastnik/1cmcp/blob/cursor/phase6-gateway-http-e909/specs/openapi.yaml). У живого шлюза: `GET /openapi.yaml`.
+Контракт: [`specs/openapi.yaml`](https://github.com/chastnik/1cmcp/blob/main/specs/openapi.yaml). У живого шлюза: `GET /openapi.yaml`.
 
 Базовый путь адаптера: `{ib}/hs/mcp/v1/...`. Шлюз проксирует те же `/v1/...` и добавляет свои маршруты.
 
