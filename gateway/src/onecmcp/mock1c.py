@@ -11,6 +11,7 @@ from fastapi import FastAPI, Query, Request
 from fastapi.responses import JSONResponse
 
 from onecmcp import __version__
+from onecmcp.diag import build_adapter_diag
 from onecmcp.query_validator import QueryRejected, resolve_limit, validate_query_text
 from onecmcp.writes import WriteEngine, fill_check, posting_check
 
@@ -699,6 +700,13 @@ def create_mock_app() -> FastAPI:
             "time": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
 
+    @app.get("/v1/diag")
+    async def diag() -> dict:
+        return build_adapter_diag(
+            version=__version__,
+            time=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        )
+
     @app.get("/v1/meta")
     async def list_meta(
         request: Request,
@@ -1152,7 +1160,7 @@ def create_mock_app() -> FastAPI:
 
     @app.api_route("/v1/{path:path}", methods=["GET", "POST", "PATCH", "PUT", "DELETE"])
     async def not_implemented(path: str, request: Request) -> JSONResponse:  # noqa: ARG001
-        if request.url.path != "/v1/health":
+        if request.url.path not in {"/v1/health", "/v1/diag"}:
             auth = _authenticate(request)
             if isinstance(auth, JSONResponse):
                 return auth

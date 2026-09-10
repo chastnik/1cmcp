@@ -56,6 +56,7 @@ def test_configuration_is_addon_with_prefix() -> None:
         ("CommonModule", "мкпЗадания"),
         ("CommonModule", "мкпДействия"),
         ("HTTPService", "мкпAPI"),
+        ("DataProcessor", "мкпАдминистрированиеКоннектора"),
         ("Catalog", "мкпКлиентыИнтеграции"),
         ("Catalog", "мкпИменованныеЗапросы"),
         ("Catalog", "мкпДействияИнтеграции"),
@@ -100,6 +101,7 @@ def test_native_object_names_use_prefix() -> None:
         "мкпЗадания",
         "мкпДействия",
         "мкпAPI",
+        "мкпАдминистрированиеКоннектора",
         "мкпКлиентыИнтеграции",
         "мкпИменованныеЗапросы",
         "мкпДействияИнтеграции",
@@ -150,6 +152,7 @@ def test_http_service_health_and_session_reuse() -> None:
     assert "/v1/data/{kind}/{name}/{id}/post" in templates
     assert "/v1/action" in templates
     assert "/v1/session/rollback" in templates
+    assert "/v1/diag" in templates
     handlers = [
         node.findtext(f"{MD}Properties/{MD}Handler")
         for node in tree.findall(f".//{MD}Method")
@@ -171,6 +174,7 @@ def test_router_implements_health_contract() -> None:
         '"v1"',
         "application/problem+json",
         "/v1/health",
+        "/v1/diag",
         "/v1/meta",
         "/v1/data",
         "/v1/query",
@@ -202,10 +206,10 @@ def test_uuids_are_unique() -> None:
     assert len(uuids) == len(set(uuids))
 
 
-def test_configuration_version_and_phase3_rights() -> None:
+def test_configuration_version_and_phase4_rights() -> None:
     tree = ET.parse(SRC / "Configuration.xml")
     props = tree.find(f"{MD}Configuration/{MD}Properties")
-    assert props.findtext(f"{MD}Version") == "0.4.0"
+    assert props.findtext(f"{MD}Version") == "0.5.0"
     rights = (SRC / "Roles" / "мкпДоступКоннектора" / "Ext" / "Rights.xml").read_text(
         encoding="utf-8"
     )
@@ -225,6 +229,7 @@ def test_configuration_version_and_phase3_rights() -> None:
         "InformationRegister.мкпКлючиИдемпотентности",
         "InformationRegister.мкпТокеныПодтверждения",
         "InformationRegister.мкпОперацииСессии",
+        "DataProcessor.мкпАдминистрированиеКоннектора",
     ):
         assert needle in rights
 
@@ -257,3 +262,11 @@ def test_phase1_modules_export_expected_entrypoints() -> None:
     assert "Функция Получить" in jobs
     actions = (SRC / "CommonModules" / "мкпДействия" / "Ext" / "Module.bsl").read_text(encoding="utf-8")
     assert "Функция ВыполнитьПоТелу" in actions
+    admin = (
+        SRC / "DataProcessors" / "мкпАдминистрированиеКоннектора" / "Ext" / "ObjectModule.bsl"
+    ).read_text(encoding="utf-8")
+    assert "Функция СгенерироватьТокенКлиента" in admin
+    assert "Функция ЧеклистПубликации" in admin
+    assert "Функция Самодиагностика" in admin
+    assert "not_required" in admin
+    assert "ХешТокена" in admin

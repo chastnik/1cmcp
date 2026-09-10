@@ -4,6 +4,8 @@ import json
 from typing import Any
 
 from onecmcp.client import AdapterError, OneCClient
+from onecmcp.config import Settings
+from onecmcp.diag import build_gateway_diag
 from onecmcp.presets import merge_search_items, scenario_guide
 
 
@@ -16,6 +18,16 @@ def mark_as_data(payload: dict[str, Any]) -> dict[str, Any]:
 
 async def health_tool(client: OneCClient) -> dict[str, Any]:
     return await client.health()
+
+
+async def diag_tool(client: OneCClient, settings: Settings) -> dict[str, Any]:
+    try:
+        adapter = await client.diag()
+        return build_gateway_diag(settings, adapter=adapter)
+    except AdapterError as exc:
+        return build_gateway_diag(settings, adapter_error=str(exc.payload or exc))
+    except Exception as exc:  # noqa: BLE001
+        return build_gateway_diag(settings, adapter_error=str(exc))
 
 
 async def meta_list_tool(

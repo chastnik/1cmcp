@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from onecmcp import __version__
 from onecmcp.client import OneCClient
 from onecmcp.config import Settings
+from onecmcp.diag import build_gateway_diag
 
 HOP_BY_HOP = {
     "connection",
@@ -86,6 +87,17 @@ def create_app(
                 },
             )
         return JSONResponse({"status": "ok", "adapter": payload})
+
+    @app.get("/diag")
+    async def gateway_diag(request: Request) -> JSONResponse:
+        client: OneCClient = request.app.state.onec
+        settings: Settings = request.app.state.settings
+        try:
+            adapter = await client.diag()
+            payload = build_gateway_diag(settings, adapter=adapter)
+        except Exception as exc:  # noqa: BLE001
+            payload = build_gateway_diag(settings, adapter_error=str(exc))
+        return JSONResponse(payload)
 
     @app.get("/openapi.yaml")
     async def openapi_yaml() -> FileResponse:
