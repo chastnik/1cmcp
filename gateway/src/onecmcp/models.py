@@ -47,6 +47,9 @@ class GatewayInfo(BaseModel):
     meta_cache_ttl_seconds: float
     tenant: str
     adapter_host: str
+    mcp_http_path: str = "/mcp"
+    rate_limit_per_minute: int = 120
+    tenants: list[str] = Field(default_factory=lambda: ["default"])
 
 
 class GatewayDiag(BaseModel):

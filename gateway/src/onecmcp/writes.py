@@ -218,6 +218,75 @@ class WriteEngine:
         return undone
 
 
+AMOUNT_FIELDS = ("Amount", "Сумма", "СуммаДокумента")
+QUANTITY_FIELDS = ("Quantity", "Количество")
+TABULAR_FIELDS = ("Goods", "Товары", "Items")
+
+
+def check_client_limits(
+    item: dict[str, Any],
+    *,
+    max_amount: float = 0,
+    max_quantity: float = 0,
+) -> list[str]:
+    """Лимиты суммы и количества на клиента интеграции. 0 — без ограничения."""
+    messages: list[str] = []
+    amount = _max_number(item, AMOUNT_FIELDS)
+    quantity = _quantity_total(item)
+    if max_amount and amount is not None and amount > max_amount:
+        messages.append(
+            f"Сумма {amount} превышает лимит клиента интеграции ({max_amount})"
+        )
+    if max_quantity and quantity is not None and quantity > max_quantity:
+        messages.append(
+            f"Количество {quantity} превышает лимит клиента интеграции ({max_quantity})"
+        )
+    return messages
+
+
+def _as_float(value: Any) -> float | None:
+    if value in (None, ""):
+        return None
+    if isinstance(value, dict):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _max_number(item: dict[str, Any], fields: tuple[str, ...]) -> float | None:
+    found: list[float] = []
+    for field in fields:
+        number = _as_float(item.get(field))
+        if number is not None:
+            found.append(number)
+    return max(found) if found else None
+
+
+def _quantity_total(item: dict[str, Any]) -> float | None:
+    total = 0.0
+    found = False
+    for field in QUANTITY_FIELDS:
+        number = _as_float(item.get(field))
+        if number is not None:
+            total += number
+            found = True
+    for table in TABULAR_FIELDS:
+        rows = item.get(table)
+        if not isinstance(rows, list):
+            continue
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            for field in QUANTITY_FIELDS:
+                number = _as_float(row.get(field))
+                if number is not None:
+                    total += number
+                    found = True
+    return total if found else None
+
+
 def _fingerprint(item: dict[str, Any]) -> str:
     payload = {key: value for key, value in item.items() if key not in {"id", "ref"}}
     return json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str)

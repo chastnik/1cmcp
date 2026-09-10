@@ -14,7 +14,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(prog="onecmcp", description="Шлюз 1cmcp")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    serve = sub.add_parser("serve", help="REST-шлюз")
+    serve = sub.add_parser("serve", help="REST-шлюз и MCP streamable HTTP на /mcp")
     serve.add_argument("--host", default=None)
     serve.add_argument("--port", type=int, default=None)
 
@@ -22,7 +22,16 @@ def main() -> None:
     mock.add_argument("--host", default="0.0.0.0")
     mock.add_argument("--port", type=int, default=18080)
 
-    sub.add_parser("mcp", help="MCP stdio для Claude Desktop")
+    mcp = sub.add_parser("mcp", help="MCP: stdio или streamable HTTP")
+    mcp.add_argument(
+        "--transport",
+        choices=["stdio", "streamable-http"],
+        default="stdio",
+        help="stdio для Claude Desktop; streamable-http для HTTP-агентов",
+    )
+    mcp.add_argument("--host", default=None)
+    mcp.add_argument("--port", type=int, default=None)
+    mcp.add_argument("--path", default="/mcp")
 
     args = parser.parse_args()
     settings = load_settings()
@@ -41,7 +50,16 @@ def main() -> None:
         return
 
     if args.command == "mcp":
-        create_mcp(settings).run(transport="stdio")
+        server = create_mcp(settings)
+        if args.transport == "stdio":
+            server.run(transport="stdio")
+            return
+        server.run(
+            transport="streamable-http",
+            host=args.host or "127.0.0.1",
+            port=args.port or settings.gateway_port,
+            streamable_http_path=args.path,
+        )
         return
 
 

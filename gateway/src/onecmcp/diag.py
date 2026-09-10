@@ -44,6 +44,7 @@ def build_gateway_diag(
     adapter_error: str | None = None,
 ) -> dict[str, Any]:
     adapter_ok = adapter is not None and not adapter_error
+    tenants = settings.tenant_map()
     return {
         "status": "ok" if adapter_ok else "degraded",
         "service": "1cmcp-gateway",
@@ -55,6 +56,9 @@ def build_gateway_diag(
             "meta_cache_ttl_seconds": settings.meta_cache_ttl_seconds,
             "tenant": settings.tenant,
             "adapter_host": adapter_host(settings.onec_base_url),
+            "mcp_http_path": settings.mcp_http_path,
+            "rate_limit_per_minute": settings.rate_limit_per_minute,
+            "tenants": sorted(tenants),
         },
         "adapter": adapter,
         "checks": [
@@ -64,5 +68,10 @@ def build_gateway_diag(
                 "detail": "ok" if adapter_ok else (adapter_error or "adapter_unavailable"),
             },
             {"id": "product_license", "ok": True, "detail": PRODUCT_LICENSE},
+            {
+                "id": "mcp_http",
+                "ok": True,
+                "detail": settings.mcp_http_path,
+            },
         ],
     }

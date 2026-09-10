@@ -292,7 +292,7 @@ curl -sS "http://1c-web/ut11/hs/mcp/v1/health"
 {
   "status": "ok",
   "service": "1cmcp",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "api": "v1",
   "time": "2026-09-09T18:00:00Z"
 }
@@ -374,7 +374,7 @@ http://127.0.0.1:8000/openapi.yaml
 
 ## 6. Подключить агента (MCP)
 
-Шлюз REST (`serve`) и процесс MCP (`mcp`) — **разные** входы. Claude Desktop запускает MCP через stdio и сам ходит в слой A по `ONEC_BASE_URL`. Ему не обязателен `serve`, если агенту не нужен HTTP.
+Шлюз REST (`serve`) отдаёт и MCP streamable HTTP на `/mcp`. Claude Desktop по-прежнему запускает отдельный процесс stdio (`python -m onecmcp mcp`).
 
 ### 6.1. Claude Desktop
 
@@ -409,6 +409,8 @@ http://127.0.0.1:8000/openapi.yaml
 ### 6.2. Claude Code / Cursor
 
 Файл [`connect/cursor.mcp.json`](connect/cursor.mcp.json) в `.mcp.json` проекта. Команда — `python -m onecmcp mcp` из окружения, где установлен `onecmcp`.
+
+Если шлюз уже запущен (`serve`), Cursor может ходить на streamable HTTP: [`connect/http.mcp.json`](connect/http.mcp.json) (`url`: `http://127.0.0.1:8000/mcp`).
 
 ### 6.3. n8n, Dify, внутренний сервис без MCP
 

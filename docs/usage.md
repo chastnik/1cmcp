@@ -11,7 +11,7 @@
 ```
 Агент (Claude, n8n, curl)
         │
-        │  MCP stdio          или         HTTP REST
+        │  MCP stdio          или         HTTP REST + `/mcp`
         ▼                                 ▼
 python -m onecmcp mcp              python -m onecmcp serve :8000
         │                                 │
@@ -27,7 +27,9 @@ python -m onecmcp mcp              python -m onecmcp serve :8000
 | `http://127.0.0.1:8000/v1/...` | REST через шлюз (n8n, браузер, curl) |
 | `http://127.0.0.1:18080/v1/...` | напрямую в мок, без шлюза |
 | `{ib}/hs/mcp/v1/...` | напрямую в 1С — **только** с хоста шлюза, не из чата |
-| процесс `onecmcp mcp` | Claude Desktop / IDE |
+| `http://127.0.0.1:8000/mcp` | MCP streamable HTTP (тот же процесс `serve`) |
+| процесс `onecmcp mcp` | Claude Desktop / IDE, stdio |
+| `python -m onecmcp mcp --transport streamable-http` | MCP HTTP без REST |
 
 Базовый путь API всегда `/v1/...`. Спецификация: [`specs/openapi.yaml`](../specs/openapi.yaml), у работающего шлюза ещё и `GET /openapi.yaml`.
 
@@ -56,8 +58,9 @@ export BASE=http://127.0.0.1:8000
 |---|---|---|
 | 401 | `unauthorized` | нет заголовка, пустой Bearer, неизвестный токен |
 | 403 | `forbidden` | нет скоупа `read` или ACL запретил объект |
-| 404 | `not_found` | нет такого вида/имени, нет ссылки, либо имя начинается с `мкп` (служебное) |
-| 400 | `bad_request` / `query_rejected` / `confirm_required` | фильтр не JSON; запрос не выборка; нет `confirm_token` или `Idempotency-Key` |
+| 400 | `bad_request` / `query_rejected` / `confirm_required` / `limit_exceeded` | фильтр не JSON; запрос не выборка; нет `confirm_token`; сумма/количество выше лимита клиента |
+| 404 | `not_found` / `unknown_tenant` | нет вида/имени, имя `мкп*`, либо `X-Tenant` не из `ONEC_TENANTS` |
+| 429 | `rate_limited` | шлюз: превышен `RATE_LIMIT_PER_MINUTE` |
 | 409 | `idempotency_conflict` | тот же ключ, другое тело |
 | 422 | `fill_check_failed` / `posting_failed` | проверка заполнения или проведение; текст ошибки — что исправить |
 | 501 | `not_implemented` | путь не из контракта v1 этой сборки |
@@ -449,9 +452,13 @@ curl -sS -X POST "$BASE/v1/session/rollback" \
 | `ONEC_TIMEOUT_SECONDS` | `30` | таймаут HTTP к 1С |
 | `GATEWAY_HOST` | `0.0.0.0` | bind REST |
 | `GATEWAY_PORT` | `8000` | порт REST |
-| `TENANT` | `default` | заголовок `X-Tenant` (задел под несколько баз) |
+| `TENANT` | `default` | тенант по умолчанию, заголовок `X-Tenant` |
+| `ONEC_TENANTS` | пусто | карта `id=url` нескольких ИБ; путь `/t/{id}/v1/...` |
 | `META_CACHE_TTL_SECONDS` | `60` | кэш `meta`; `0` — выключить |
 | `ONEC_PRESET` | `auto` | подсказки УТ/КА/ERP/БП: `ut11`, `ka2`, `erp2`, `bp30`, `auto`, `none` |
+| `RATE_LIMIT_PER_MINUTE` | `120` | лимит запросов шлюза; `0` — выключить; `/health`/`/ready` не считаются |
+| `MCP_HTTP_PATH` | `/mcp` | путь streamable HTTP на процессе `serve` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | пусто | экспорт трасс; нужен `pip install 'onecmcp[otel]'` |
 
 Команды:
 
@@ -459,9 +466,12 @@ curl -sS -X POST "$BASE/v1/session/rollback" \
 python -m onecmcp mock1c --host 127.0.0.1 --port 18080
 python -m onecmcp serve --host 127.0.0.1 --port 8000
 python -m onecmcp mcp
+python -m onecmcp mcp --transport streamable-http --port 8000
 ```
 
-`--host` / `--port` у `serve` перекрывают `GATEWAY_*`.
+`--host` / `--port` у `serve` перекрывают `GATEWAY_*`. `serve` уже отдаёт MCP на `/mcp`.
+
+В справочнике `мкпКлиентыИнтеграции` поля **Лимит суммы** и **Лимит количества** (0 — без ограничения) режут запись агента: dry-run пишет предупреждение в `fill_check`, `POST` — `400 limit_exceeded`.
 
 ---
 

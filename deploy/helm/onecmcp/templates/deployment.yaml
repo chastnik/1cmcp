@@ -38,8 +38,14 @@ spec:
               value: {{ .Values.onec.preset | quote }}
             - name: TENANT
               value: {{ .Values.gateway.tenant | quote }}
+            - name: ONEC_TENANTS
+              value: {{ .Values.gateway.tenants | quote }}
             - name: META_CACHE_TTL_SECONDS
               value: {{ .Values.gateway.metaCacheTtlSeconds | quote }}
+            - name: RATE_LIMIT_PER_MINUTE
+              value: {{ .Values.gateway.rateLimitPerMinute | quote }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.gateway.otelExporterOtlpEndpoint | quote }}
           livenessProbe:
             httpGet:
               path: /health

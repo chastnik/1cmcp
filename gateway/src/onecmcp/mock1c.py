@@ -13,12 +13,13 @@ from fastapi.responses import JSONResponse
 from onecmcp import __version__
 from onecmcp.diag import build_adapter_diag
 from onecmcp.query_validator import QueryRejected, resolve_limit, validate_query_text
-from onecmcp.writes import WriteEngine, fill_check, posting_check
+from onecmcp.writes import WriteEngine, check_client_limits, fill_check, posting_check
 
 DEV_TOKEN = "dev-token"
 WRITE_ONLY_TOKEN = "write-only-token"
 DENIED_SHIPMENTS_TOKEN = "deny-shipments-token"
 WRITE_DEV_TOKEN = "dev-write-token"
+LIMITED_TOKEN = "dev-limit-token"
 
 DEMO_ID_ROMA = "8a996f93-36c8-4bcf-b707-f75b8b4bc5e3"
 DEMO_ID_IVAN = "caf2ddab-572b-4ea9-b84f-ca4006dcb864"
@@ -46,6 +47,16 @@ _CLIENTS: dict[str, dict[str, Any]] = {
             ("catalog", "DemoCounterparties"): True,
             ("document", "DemoShipments"): False,
         },
+    },
+    LIMITED_TOKEN: {
+        "id": "amount-limited",
+        "scopes": ["read", "write"],
+        "acl": {
+            ("catalog", "DemoCounterparties"): True,
+            ("document", "DemoShipments"): True,
+        },
+        "max_amount": 100.0,
+        "max_quantity": 1.0,
     },
 }
 
@@ -938,7 +949,15 @@ def create_mock_app() -> FastAPI:
             return problem(400, "bad_request", "Bad request", "Нужно поле item")
         if _COLLECTIONS.get((kind, name)) is None:
             return problem(404, "not_found", "Not found", f"Нет выборки {kind}/{name}")
-        return JSONResponse(_WRITE.dry_run(kind, name, item, post=bool(payload.get("post"))))
+        result = _WRITE.dry_run(kind, name, item, post=bool(payload.get("post")))
+        limits = check_client_limits(
+            item,
+            max_amount=float(auth.get("max_amount") or 0),
+            max_quantity=float(auth.get("max_quantity") or 0),
+        )
+        if limits:
+            result = {**result, "fill_check": list(result.get("fill_check") or []) + limits}
+        return JSONResponse(result)
 
     @app.post("/v1/data/{kind}/{name}")
     async def create_data(kind: str, name: str, request: Request) -> JSONResponse:
@@ -972,6 +991,13 @@ def create_mock_app() -> FastAPI:
         if isinstance(consumed, str):
             return problem(400, "confirm_required", "Confirmation required", consumed)
         stored = consumed["item"]
+        limits = check_client_limits(
+            stored,
+            max_amount=float(auth.get("max_amount") or 0),
+            max_quantity=float(auth.get("max_quantity") or 0),
+        )
+        if limits:
+            return problem(400, "limit_exceeded", "Limit exceeded", "; ".join(limits))
         issues = fill_check(kind, name, stored)
         if issues:
             return problem(422, "fill_check_failed", "Fill check failed", "; ".join(issues))

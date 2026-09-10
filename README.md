@@ -38,10 +38,10 @@ flowchart LR
     Apps["n8n / Dify / curl"]
   end
   subgraph gateway["Слой B — шлюз onecmcp"]
-    MCP["MCP stdio"]
+    MCP["MCP stdio и /mcp HTTP"]
     REST["REST FastAPI"]
     Preset["guide и пресеты УТ/КА/ERP/БП"]
-    MetaCache["кэш meta, TTL 60 с"]
+    MetaCache["кэш meta, лимиты, тенанты"]
   end
   subgraph adapter["Слой A — адаптер"]
     Mock["мок :18080"]
@@ -228,12 +228,12 @@ flowchart LR
 
 ## Статус
 
-Фаза 5 — каталог сценариев и пресеты агентов. Ключ продукта не нужен. В репозитории:
+Фаза 5 — каталог сценариев. Фаза 6 (0.7.0) — streamable HTTP MCP, тенанты, rate limit, лимиты суммы на клиента. Ключ продукта не нужен.
 
 - ADR, регламент clean room, чек-лист приёмки, [совместимость](docs/compatibility.md), [пилоты](docs/pilots.md)
-- OpenAPI 3.1 на весь v1 (версия контракта 0.6.0)
+- OpenAPI 3.1 на весь v1 (версия контракта 0.7.0)
 - расширение `мкпКоннектор`: Bearer-токен, интроспекция, чтение, `query`/`report`/`job`, запись/`action`/откат, `GET /v1/diag`, обработка `мкпАдминистрированиеКоннектора`
-- шлюз с REST-прокси, `GET /diag`, `GET /guide`, кэшем метаданных, MCP и моком слоя A
+- шлюз с REST-прокси, MCP `/mcp`, тенантами, rate limit, `GET /diag`, `GET /guide`, кэшем метаданных и моком слоя A
 - `docker-compose.yml` с healthcheck, чарт `deploy/helm/onecmcp`, пресеты [connect](docs/connect/README.md)
 
 Критерий git Ф5: партнёрский инженер подключает агента по документации и прогоняет каталог `guide`. Живые пилоты на базах клиентов и заявка в реестр ПО — вне репозитория.

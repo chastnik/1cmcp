@@ -44,7 +44,9 @@
 
 Собирает набор MCP-инструментов из метаданных конкретной базы, отдаёт OpenAPI 3.1 для агентов без MCP, держит кэш метаданных, аутентификацию, лимиты и трассировку. Один шлюз обслуживает несколько баз с маршрутизацией по тенанту.
 
-MCP stdio + streamable HTTP · REST / OpenAPI 3.1 · OAuth2 client credentials · кэш метаданных · OpenTelemetry
+MCP stdio + streamable HTTP · REST / OpenAPI 3.1 · кэш метаданных · лимиты · маршрутизация тенантов · OpenTelemetry
+
+OAuth2 client credentials на шлюзе отложен (ADR-0010).
 
 ↕ *MCP · REST*
 
@@ -159,6 +161,8 @@ Claude / Claude Code · PIX Operator · n8n · Dify · GigaChat · YandexGPT · 
 - Пресеты подключения: Claude Desktop, Cursor, n8n — `docs/connect/`
 - Семена семантического словаря из публичных имён типовых (`dictionary_seed`)
 - Чек-листы пилота и реестра ПО
+
+**В репозитории (0.7.0, хвост слоя B):** MCP streamable HTTP на `/mcp`, `ONEC_TENANTS` / `/t/{tenant}/v1`, rate limit, лимиты суммы и количества на `мкпКлиентыИнтеграции`, спаны OpenTelemetry. WAF — на периметре оператора.
 
 **Вне репозитория:** живые пилоты на базах клиентов; подача заявки в реестр отечественного ПО; первая продажа через партнёрский офис. Лицензирование продукта 1cmcp по-прежнему отложено.
 

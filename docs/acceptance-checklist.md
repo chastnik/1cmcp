@@ -41,6 +41,9 @@
 - [ ] `GET /diag` не содержит токен; `product_license` = `not_required`
 - [ ] Helm-чарт `deploy/helm/onecmcp` не содержит ключа продукта
 - [ ] `GET /guide` отдаёт каталог; запись в плейбуке идёт через `data_dry_run`
+- [ ] `serve` отдаёт MCP на `/mcp`; неизвестный `X-Tenant` — `404 unknown_tenant`
+- [ ] превышение `RATE_LIMIT_PER_MINUTE` — `429 rate_limited`; `/health` не режется
+- [ ] лимит суммы клиента — `400 limit_exceeded` на записи
 
 ## Репозиторий
 
