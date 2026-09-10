@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: 1cmcp Adapter API
-  version: 0.8.0
+  version: 0.9.0
   summary: Внутренний контракт слоя A (расширение 1С) и REST-проекция шлюза.
   description: |
     Канонический контракт v1. Слой A публикует его как HTTP-сервис с корневым URL `mcp`.
@@ -9,6 +9,7 @@ info:
     маршрутизирует тенантов (`X-Tenant` или `/t/{tenant}/v1/...`) и режет частоту запросов.
 
     Ф4 добавляет самодиагностику `GET /v1/diag`. Ф7 — журнал `GET /v1/audit`.
+    Ф8 — просмотр сессии `GET /v1/session/{session_id}` перед откатом.
     Лицензионный ключ продукта 1cmcp не требуется (`product_license: not_required`).
     OAuth шлюза отложен. Неизвестный путь и `POST /v1/job` с `operation: action`
     отвечают `501`. Форму уже описанных ресурсов без новой мажорной версии менять нельзя.
@@ -48,7 +49,7 @@ tags:
   - name: job
     description: Фоновые задания (Ф2)
   - name: session
-    description: Откат сессии агента (Ф3)
+    description: Просмотр и откат сессии агента (Ф3, Ф8)
   - name: audit
     description: Журнал вызовов текущего клиента (Ф7)
 
@@ -75,7 +76,7 @@ paths:
               example:
                 status: ok
                 service: 1cmcp
-                version: 0.8.0
+                version: 0.9.0
                 api: v1
                 time: "2026-09-09T17:00:00Z"
         default:
@@ -101,7 +102,7 @@ paths:
               example:
                 status: ok
                 service: 1cmcp
-                version: 0.8.0
+                version: 0.9.0
                 api: v1
                 time: "2026-09-09T20:00:00Z"
                 product_license: not_required
@@ -145,6 +146,11 @@ paths:
         - name: path
           in: query
           description: Префикс пути (`/v1/data/document/DemoShipments`)
+          schema:
+            type: string
+        - name: session
+          in: query
+          description: Точное значение `X-Session-Id`
           schema:
             type: string
       responses:
@@ -646,6 +652,33 @@ paths:
         default:
           $ref: "#/components/responses/Problem"
 
+  /v1/session/{session_id}:
+    get:
+      tags: [session]
+      operationId: getSession
+      summary: Операции сессии агента до отката
+      description: |
+        Скоуп `read`. Только операции этого Bearer с заголовком `X-Session-Id`.
+        Пустая сессия — `200` и `items: []`. Откат — `POST /v1/session/rollback` (скоуп `write`).
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Операции в порядке записи
+          headers:
+            X-1cmcp-Content-Kind:
+              $ref: "#/components/headers/ContentKind"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionPage"
+        default:
+          $ref: "#/components/responses/Problem"
+
   /v1/session/rollback:
     post:
       tags: [session]
@@ -791,7 +824,7 @@ components:
           const: 1cmcp
         version:
           type: string
-          examples: ["0.8.0"]
+          examples: ["0.9.0"]
         api:
           type: string
           const: v1
@@ -1041,6 +1074,9 @@ components:
         at:
           type: string
           format: date-time
+        session_id:
+          type: string
+          description: Значение `X-Session-Id`, если заголовок был
         created_refs:
           type: array
           items: {}
@@ -1255,6 +1291,31 @@ components:
           additionalProperties: true
         error:
           $ref: "#/components/schemas/Problem"
+
+    SessionPage:
+      type: object
+      required: [content_kind, session_id, items]
+      properties:
+        content_kind:
+          type: string
+          const: data
+        session_id:
+          type: string
+        items:
+          type: array
+          items:
+            type: object
+            required: [op, kind, name, id]
+            properties:
+              op:
+                type: string
+                enum: [create, patch, post]
+              kind:
+                type: string
+              name:
+                type: string
+              id:
+                type: string
 
     RollbackRequest:
       type: object

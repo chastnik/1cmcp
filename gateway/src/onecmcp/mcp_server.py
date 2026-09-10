@@ -26,6 +26,7 @@ from onecmcp.tools import (
     meta_search_tool,
     query_tool,
     report_tool,
+    session_get_tool,
     session_rollback_tool,
 )
 
@@ -65,10 +66,13 @@ def create_mcp(
         limit: int = 50,
         since: str | None = None,
         path: str | None = None,
+        session: str | None = None,
     ) -> dict:
         """Журнал вызовов текущего клиента интеграции: метод, путь, код, длительность, ссылки записи."""
         async with _client(factory) as client:
-            return await audit_list_tool(client, limit=limit, since=since, path=path)
+            return await audit_list_tool(
+                client, limit=limit, since=since, path=path, session=session
+            )
 
     @mcp.tool()
     async def guide(question: str) -> dict:
@@ -257,6 +261,12 @@ def create_mcp(
                 idempotency_key=idempotency_key,
                 session_id=session_id,
             )
+
+    @mcp.tool()
+    async def session_get(session_id: str) -> dict:
+        """Операции сессии агента (X-Session-Id) до отката: create/patch/post этого клиента."""
+        async with _client(factory) as client:
+            return await session_get_tool(client, session_id)
 
     @mcp.tool()
     async def session_rollback(session_id: str) -> dict:

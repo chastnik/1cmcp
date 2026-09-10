@@ -30,6 +30,7 @@ def test_mcp_registers_discovery_tools() -> None:
         "data_post",
         "action",
         "session_rollback",
+        "session_get",
         "audit_list",
     } <= names
 

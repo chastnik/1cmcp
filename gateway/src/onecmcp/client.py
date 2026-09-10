@@ -99,12 +99,15 @@ class OneCClient:
         limit: int = 50,
         since: str | None = None,
         path: str | None = None,
+        session: str | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"limit": limit}
         if since:
             params["since"] = since
         if path:
             params["path"] = path
+        if session:
+            params["session"] = session
         return await self.get_json("/v1/audit", params=params)
 
     async def meta_list(
@@ -257,6 +260,9 @@ class OneCClient:
             json=payload,
             headers=_write_headers(idempotency_key, session_id),
         )
+
+    async def session_get(self, session_id: str) -> dict[str, Any]:
+        return await self.get_json(f"/v1/session/{session_id}")
 
     async def rollback_session(self, session_id: str) -> dict[str, Any]:
         _, body = await self.post_json("/v1/session/rollback", json={"session_id": session_id})

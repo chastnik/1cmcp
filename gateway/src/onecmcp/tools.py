@@ -35,9 +35,12 @@ async def audit_list_tool(
     limit: int = 50,
     since: str | None = None,
     path: str | None = None,
+    session: str | None = None,
 ) -> dict[str, Any]:
     try:
-        return mark_as_data(await client.audit_list(limit=limit, since=since, path=path))
+        return mark_as_data(
+            await client.audit_list(limit=limit, since=since, path=path, session=session)
+        )
     except AdapterError as exc:
         return _error_payload(exc)
 
@@ -301,6 +304,13 @@ async def action_tool(
             session_id=session_id,
         )
         return body
+    except AdapterError as exc:
+        return _error_payload(exc)
+
+
+async def session_get_tool(client: OneCClient, session_id: str) -> dict[str, Any]:
+    try:
+        return mark_as_data(await client.session_get(session_id))
     except AdapterError as exc:
         return _error_payload(exc)
 

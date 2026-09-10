@@ -151,6 +151,8 @@ def test_cli_flags_and_extension_fields_are_documented() -> None:
         "/v1/audit",
         "audit_list",
         "СсылкиJSON",
+        "session_get",
+        "/v1/session/",
     ):
         assert needle in text, f"в документации нет {needle!r}"
     clients = (DOCS / "admin" / "clients.md").read_text(encoding="utf-8")
