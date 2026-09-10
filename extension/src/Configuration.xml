@@ -53,7 +53,7 @@
 			<DefaultRoles>
 				<xr:Item xsi:type="xr:MDObjectRef">Role.мкпДоступКоннектора</xr:Item>
 			</DefaultRoles>
-			<Vendor>Первый Бит</Vendor>
+			<Vendor>Стас Чашин</Vendor>
 			<Version>0.7.0</Version>
 			<BriefInformation>
 				<v8:item>
@@ -70,10 +70,10 @@
 			<Copyright>
 				<v8:item>
 					<v8:lang>ru</v8:lang>
-					<v8:content>© Первый Бит</v8:content>
+					<v8:content>© Стас Чашин. Разработчик: Стас Чашин, Stas@Chashin.pro</v8:content>
 				</v8:item>
 			</Copyright>
-			<VendorInformationAddress/>
+			<VendorInformationAddress>mailto:Stas@Chashin.pro</VendorInformationAddress>
 			<ConfigurationInformationAddress/>
 		</Properties>
 		<ChildObjects>

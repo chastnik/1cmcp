@@ -39,7 +39,13 @@ def test_configuration_is_addon_with_prefix() -> None:
     assert props.findtext(f"{MD}NamePrefix") == PREFIX
     assert props.findtext(f"{MD}ConfigurationExtensionPurpose") == "AddOn"
     assert props.findtext(f"{MD}ConfigurationExtensionCompatibilityMode") == "Version8_3_20"
-    assert props.findtext(f"{MD}Vendor") == "Первый Бит"
+    assert props.findtext(f"{MD}Vendor") == "Стас Чашин"
+    copyright = props.find(f"{MD}Copyright")
+    assert copyright is not None
+    copyright_text = ET.tostring(copyright, encoding="unicode")
+    assert "Стас Чашин" in copyright_text
+    assert "Stas@Chashin.pro" in copyright_text
+    assert props.findtext(f"{MD}VendorInformationAddress") == "mailto:Stas@Chashin.pro"
     children = [
         (child.tag.removeprefix(MD), (child.text or "").strip())
         for child in tree.find(f"{MD}Configuration/{MD}ChildObjects")

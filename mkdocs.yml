@@ -1,11 +1,11 @@
 site_name: 1cmcp
 site_description: Документация универсального MCP/REST-коннектора к базам 1С
-site_author: Первый Бит
+site_author: Стас Чашин, Stas@Chashin.pro
 docs_dir: docs
 repo_url: https://github.com/chastnik/1cmcp
 repo_name: chastnik/1cmcp
 edit_uri: ""
-copyright: © Первый Бит. Ключ продукта 1cmcp не требуется.
+copyright: "© Стас Чашин. Разработчик: Стас Чашин, Stas@Chashin.pro. Ключ продукта 1cmcp не требуется."
 
 theme:
   name: material

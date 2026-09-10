@@ -155,3 +155,46 @@ def test_cli_flags_and_extension_fields_are_documented() -> None:
     assert "как изменить" in clients.lower() or "Как задать" in clients
     assert "```mermaid" in (DOCS / "index.md").read_text(encoding="utf-8")
     assert "```mermaid" in clients
+    assert "Stas@Chashin.pro" in (DOCS / "index.md").read_text(encoding="utf-8")
+
+
+def test_pervy_bit_removed_and_developer_is_chashin() -> None:
+    forbidden = ("Первый" + " Бит", "Первый" + " БИТ", "Первый" + "Бит")
+    skip_parts = {
+        ".git",
+        "site",
+        ".venv",
+        "venv",
+        "__pycache__",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".ruff_cache",
+        ".cache",
+    }
+    suffixes = {".md", ".yml", ".yaml", ".toml", ".xml", ".py", ".bsl", ".html", ".txt", ".json", ".sh"}
+    hits: list[str] = []
+    for path in ROOT.rglob("*"):
+        if not path.is_file():
+            continue
+        if any(part in skip_parts or part.endswith(".egg-info") for part in path.parts):
+            continue
+        if path.suffix.lower() not in suffixes and path.name not in {"Dockerfile", "mkdocs.yml"}:
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        for needle in forbidden:
+            if needle in text:
+                hits.append(f"{path.relative_to(ROOT)}: {needle}")
+    assert hits == [], "остались упоминания бывшего поставщика: " + "; ".join(hits)
+    identity = "\n".join(
+        [
+            (ROOT / "README.md").read_text(encoding="utf-8"),
+            (ROOT / "gateway" / "pyproject.toml").read_text(encoding="utf-8"),
+            (ROOT / "extension" / "src" / "Configuration.xml").read_text(encoding="utf-8"),
+            MKDOCS.read_text(encoding="utf-8"),
+        ]
+    )
+    assert "Стас Чашин" in identity
+    assert "Stas@Chashin.pro" in identity
