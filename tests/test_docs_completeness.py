@@ -198,3 +198,9 @@ def test_pervy_bit_removed_and_developer_is_chashin() -> None:
     )
     assert "Стас Чашин" in identity
     assert "Stas@Chashin.pro" in identity
+    license_text = (ROOT / "LICENSE").read_text(encoding="utf-8")
+    assert license_text.startswith("MIT License")
+    assert "Стас Чашин" in license_text
+    assert "Stas@Chashin.pro" in license_text
+    assert "MIT" in (ROOT / "gateway" / "pyproject.toml").read_text(encoding="utf-8")
+    assert "name: MIT" in (ROOT / "specs" / "openapi.yaml").read_text(encoding="utf-8")

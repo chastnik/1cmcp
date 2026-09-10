@@ -19,7 +19,8 @@ info:
     name: Стас Чашин
     email: Stas@Chashin.pro
   license:
-    name: Proprietary
+    name: MIT
+    identifier: MIT
 
 servers:
   - url: /hs/mcp
