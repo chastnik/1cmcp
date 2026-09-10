@@ -1,0 +1,112 @@
+site_name: 1cmcp
+site_description: Документация универсального MCP/REST-коннектора к базам 1С
+site_author: Стас Чашин, Stas@Chashin.pro
+docs_dir: docs
+repo_url: https://github.com/chastnik/1cmcp
+repo_name: chastnik/1cmcp
+edit_uri: ""
+copyright: "© Стас Чашин. Разработчик: Стас Чашин, Stas@Chashin.pro. Ключ продукта 1cmcp не требуется."
+
+theme:
+  name: material
+  language: ru
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.instant
+    - navigation.tracking
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.tabs.link
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Тёмная тема
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Светлая тема
+
+validation:
+  nav:
+    omitted_files: ignore
+  links:
+    absolute_links: ignore
+    unrecognized_links: ignore
+    not_found: warn
+
+plugins:
+  - search:
+      lang:
+        - ru
+        - en
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+
+nav:
+  - Начало:
+      - Главная: index.md
+      - Архитектура: architecture.md
+      - Совместимость: compatibility.md
+      - Пилот: pilots.md
+  - Установка:
+      - Обзор: install.md
+      - Контур без 1С: install/mock.md
+      - Расширение и публикация: install/extension.md
+      - Docker и Helm: install/containers.md
+  - Пользование:
+      - Обзор: usage.md
+      - REST и MCP: usage/protocols.md
+      - Чтение и отчёты: usage/read.md
+      - Запись и dry-run: usage/write.md
+      - Пресеты и guide: skills.md
+      - Подключение агентов: connect/README.md
+  - Администрирование:
+      - Обзор: admin/overview.md
+      - Клиенты, токены и лимиты: admin/clients.md
+      - Права и ACL: admin/access.md
+      - Тенанты и несколько баз: admin/tenants.md
+      - Диагностика и лицензии 1С: admin/diag.md
+      - Как что-либо изменить: admin/how-to-change.md
+  - Справочник:
+      - Все настройки: reference/settings.md
+      - Команды CLI: reference/cli.md
+      - HTTP и MCP: reference/api.md
+      - Объекты расширения: reference/extension.md
+      - Ошибки: reference/errors.md
+      - Чек-лист приёмки: acceptance-checklist.md
+  - Разработка:
+      - Clean room: clean-room.md
+      - Стенды: stands.md
+      - Реестр ПО: registry.md
+      - ADR: adr/index.md

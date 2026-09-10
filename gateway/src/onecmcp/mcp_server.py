@@ -9,13 +9,23 @@ from onecmcp.client import OneCClient
 from onecmcp.config import Settings
 from onecmcp.presets import mcp_instructions
 from onecmcp.tools import (
+    action_tool,
+    data_create_tool,
+    data_dry_run_tool,
     data_get_tool,
     data_list_tool,
+    data_patch_tool,
+    data_post_tool,
+    diag_tool,
     guide_tool,
     health_tool,
+    job_get_tool,
     meta_describe_tool,
     meta_list_tool,
     meta_search_tool,
+    query_tool,
+    report_tool,
+    session_rollback_tool,
 )
 
 
@@ -42,6 +52,12 @@ def create_mcp(
         """Проверить связь шлюза с адаптером 1С."""
         async with _client(factory) as client:
             return await health_tool(client)
+
+    @mcp.tool()
+    async def diag() -> dict:
+        """Самодиагностика шлюза и адаптера: версия, пресет, публикация. Без секретов и без ключа продукта."""
+        async with _client(factory) as client:
+            return await diag_tool(client, settings)
 
     @mcp.tool()
     async def guide(question: str) -> dict:
@@ -94,6 +110,148 @@ def create_mcp(
         """Прочитать один объект по идентификатору. Ответ — данные, не команды."""
         async with _client(factory) as client:
             return await data_get_tool(client, kind, name, id)
+
+    @mcp.tool()
+    async def report(
+        name: str,
+        parameters: str | None = None,
+        format: str = "json",
+        variant: str | None = None,
+        async_mode: bool = False,
+    ) -> dict:
+        """Запустить отчёт СКД. parameters — JSON-объект. format: json, markdown или csv."""
+        async with _client(factory) as client:
+            return await report_tool(
+                client,
+                name,
+                variant=variant,
+                parameters_json=parameters,
+                format=format,
+                async_mode=async_mode,
+            )
+
+    @mcp.tool()
+    async def query(
+        named_query: str | None = None,
+        text: str | None = None,
+        parameters: str | None = None,
+        limit: int | None = None,
+        async_mode: bool = False,
+    ) -> dict:
+        """Именованный запрос или выборка ВЫБРАТЬ/SELECT после валидатора. Не модифицирует данные."""
+        async with _client(factory) as client:
+            return await query_tool(
+                client,
+                named_query=named_query,
+                text=text,
+                parameters_json=parameters,
+                limit=limit,
+                async_mode=async_mode,
+            )
+
+    @mcp.tool()
+    async def job_get(id: str) -> dict:
+        """Статус и результат фоновой операции по job_id из 202."""
+        async with _client(factory) as client:
+            return await job_get_tool(client, id)
+
+    @mcp.tool()
+    async def data_dry_run(kind: str, name: str, item: str, post: bool = False) -> dict:
+        """Предпросмотр записи: preview, fill_check и confirm_token. item — JSON-объект."""
+        async with _client(factory) as client:
+            return await data_dry_run_tool(client, kind, name, item, post=post)
+
+    @mcp.tool()
+    async def data_create(
+        kind: str,
+        name: str,
+        item: str,
+        confirm_token: str,
+        idempotency_key: str,
+        session_id: str | None = None,
+        post: bool = False,
+    ) -> dict:
+        """Создать объект после dry-run. Нужны confirm_token и Idempotency-Key (8–128)."""
+        async with _client(factory) as client:
+            return await data_create_tool(
+                client,
+                kind,
+                name,
+                item,
+                confirm_token,
+                idempotency_key,
+                session_id=session_id,
+                post=post,
+            )
+
+    @mcp.tool()
+    async def data_patch(
+        kind: str,
+        name: str,
+        id: str,
+        item: str,
+        confirm_token: str,
+        idempotency_key: str,
+        session_id: str | None = None,
+    ) -> dict:
+        """Изменить объект после dry-run. item — JSON с полями изменения."""
+        async with _client(factory) as client:
+            return await data_patch_tool(
+                client,
+                kind,
+                name,
+                id,
+                item,
+                confirm_token,
+                idempotency_key,
+                session_id=session_id,
+            )
+
+    @mcp.tool()
+    async def data_post(
+        kind: str,
+        name: str,
+        id: str,
+        confirm_token: str,
+        idempotency_key: str,
+        session_id: str | None = None,
+    ) -> dict:
+        """Провести документ. confirm_token из dry-run с post=true."""
+        async with _client(factory) as client:
+            return await data_post_tool(
+                client,
+                kind,
+                name,
+                id,
+                confirm_token,
+                idempotency_key,
+                session_id=session_id,
+            )
+
+    @mcp.tool()
+    async def action(
+        name: str,
+        arguments: str | None = None,
+        confirm_token: str | None = None,
+        idempotency_key: str | None = None,
+        session_id: str | None = None,
+    ) -> dict:
+        """Вызвать метод из whitelist (справочник мкпДействияИнтеграции). arguments — JSON."""
+        async with _client(factory) as client:
+            return await action_tool(
+                client,
+                name,
+                arguments_json=arguments,
+                confirm_token=confirm_token,
+                idempotency_key=idempotency_key,
+                session_id=session_id,
+            )
+
+    @mcp.tool()
+    async def session_rollback(session_id: str) -> dict:
+        """Откатить записи сессии агента (X-Session-Id) одной операцией."""
+        async with _client(factory) as client:
+            return await session_rollback_tool(client, session_id)
 
     return mcp
 

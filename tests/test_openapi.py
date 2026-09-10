@@ -25,12 +25,18 @@ def test_openapi_covers_v1_surface() -> None:
         "/v1/data/{kind}/{name}",
         "/v1/data/{kind}/{name}/{id}",
         "/v1/data/{kind}/{name}/dry-run",
+        "/v1/data/{kind}/{name}/{id}/post",
         "/v1/query",
         "/v1/report",
         "/v1/action",
         "/v1/job",
         "/v1/job/{id}",
         "/v1/session/rollback",
+        "/v1/diag",
+        "/guide",
+        "/diag",
+        "/mcp",
+        "/t/{tenant}/v1/{path}",
     }
     assert required <= set(paths)
     assert spec["openapi"].startswith("3.1")

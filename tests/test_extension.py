@@ -39,7 +39,13 @@ def test_configuration_is_addon_with_prefix() -> None:
     assert props.findtext(f"{MD}NamePrefix") == PREFIX
     assert props.findtext(f"{MD}ConfigurationExtensionPurpose") == "AddOn"
     assert props.findtext(f"{MD}ConfigurationExtensionCompatibilityMode") == "Version8_3_20"
-    assert props.findtext(f"{MD}Vendor") == "Первый Бит"
+    assert props.findtext(f"{MD}Vendor") == "Стас Чашин"
+    copyright = props.find(f"{MD}Copyright")
+    assert copyright is not None
+    copyright_text = ET.tostring(copyright, encoding="unicode")
+    assert "Стас Чашин" in copyright_text
+    assert "Stas@Chashin.pro" in copyright_text
+    assert props.findtext(f"{MD}VendorInformationAddress") == "mailto:Stas@Chashin.pro"
     children = [
         (child.tag.removeprefix(MD), (child.text or "").strip())
         for child in tree.find(f"{MD}Configuration/{MD}ChildObjects")
@@ -51,11 +57,22 @@ def test_configuration_is_addon_with_prefix() -> None:
         ("CommonModule", "мкпСериализация"),
         ("CommonModule", "мкпИнтроспекция"),
         ("CommonModule", "мкпДанные"),
+        ("CommonModule", "мкпЗапросы"),
+        ("CommonModule", "мкпОтчёты"),
+        ("CommonModule", "мкпЗадания"),
+        ("CommonModule", "мкпДействия"),
         ("HTTPService", "мкпAPI"),
+        ("DataProcessor", "мкпАдминистрированиеКоннектора"),
         ("Catalog", "мкпКлиентыИнтеграции"),
+        ("Catalog", "мкпИменованныеЗапросы"),
+        ("Catalog", "мкпДействияИнтеграции"),
         ("InformationRegister", "мкпПравилаДоступа"),
         ("InformationRegister", "мкпСемантическийСловарь"),
         ("InformationRegister", "мкпЖурналВызовов"),
+        ("InformationRegister", "мкпСостоянияЗаданий"),
+        ("InformationRegister", "мкпКлючиИдемпотентности"),
+        ("InformationRegister", "мкпТокеныПодтверждения"),
+        ("InformationRegister", "мкпОперацииСессии"),
     ]
 
 
@@ -85,11 +102,22 @@ def test_native_object_names_use_prefix() -> None:
         "мкпСериализация",
         "мкпИнтроспекция",
         "мкпДанные",
+        "мкпЗапросы",
+        "мкпОтчёты",
+        "мкпЗадания",
+        "мкпДействия",
         "мкпAPI",
+        "мкпАдминистрированиеКоннектора",
         "мкпКлиентыИнтеграции",
+        "мкпИменованныеЗапросы",
+        "мкпДействияИнтеграции",
         "мкпПравилаДоступа",
         "мкпСемантическийСловарь",
         "мкпЖурналВызовов",
+        "мкпСостоянияЗаданий",
+        "мкпКлючиИдемпотентности",
+        "мкпТокеныПодтверждения",
+        "мкпОперацииСессии",
     }
     assert object_names <= set(names)
     for name in object_names:
@@ -122,6 +150,15 @@ def test_http_service_health_and_session_reuse() -> None:
     assert "/v1/meta/{kind}/{name}" in templates
     assert "/v1/data/{kind}/{name}" in templates
     assert "/v1/data/{kind}/{name}/{id}" in templates
+    assert "/v1/query" in templates
+    assert "/v1/report" in templates
+    assert "/v1/job" in templates
+    assert "/v1/job/{id}" in templates
+    assert "/v1/data/{kind}/{name}/dry-run" in templates
+    assert "/v1/data/{kind}/{name}/{id}/post" in templates
+    assert "/v1/action" in templates
+    assert "/v1/session/rollback" in templates
+    assert "/v1/diag" in templates
     handlers = [
         node.findtext(f"{MD}Properties/{MD}Handler")
         for node in tree.findall(f".//{MD}Method")
@@ -143,11 +180,22 @@ def test_router_implements_health_contract() -> None:
         '"v1"',
         "application/problem+json",
         "/v1/health",
+        "/v1/diag",
         "/v1/meta",
         "/v1/data",
+        "/v1/query",
+        "/v1/report",
+        "/v1/job",
         "мкпБезопасность",
         "мкпИнтроспекция",
         "мкпДанные",
+        "мкпЗапросы",
+        "мкпОтчёты",
+        "мкпЗадания",
+        "мкпДействия",
+        "/v1/action",
+        "/v1/session/rollback",
+        "dry-run",
     ):
         assert needle in module
 
@@ -164,19 +212,30 @@ def test_uuids_are_unique() -> None:
     assert len(uuids) == len(set(uuids))
 
 
-def test_configuration_version_and_phase1_rights() -> None:
+def test_configuration_version_and_phase4_rights() -> None:
     tree = ET.parse(SRC / "Configuration.xml")
     props = tree.find(f"{MD}Configuration/{MD}Properties")
-    assert props.findtext(f"{MD}Version") == "0.2.0"
+    assert props.findtext(f"{MD}Version") == "0.7.0"
     rights = (SRC / "Roles" / "мкпДоступКоннектора" / "Ext" / "Rights.xml").read_text(
         encoding="utf-8"
     )
     for needle in (
         "CommonModule.мкпБезопасность",
+        "CommonModule.мкпЗапросы",
+        "CommonModule.мкпОтчёты",
+        "CommonModule.мкпЗадания",
+        "CommonModule.мкпДействия",
         "Catalog.мкпКлиентыИнтеграции",
+        "Catalog.мкпИменованныеЗапросы",
+        "Catalog.мкпДействияИнтеграции",
         "InformationRegister.мкпЖурналВызовов",
         "InformationRegister.мкпСемантическийСловарь",
         "InformationRegister.мкпПравилаДоступа",
+        "InformationRegister.мкпСостоянияЗаданий",
+        "InformationRegister.мкпКлючиИдемпотентности",
+        "InformationRegister.мкпТокеныПодтверждения",
+        "InformationRegister.мкпОперацииСессии",
+        "DataProcessor.мкпАдминистрированиеКоннектора",
     ):
         assert needle in rights
 
@@ -187,10 +246,34 @@ def test_phase1_modules_export_expected_entrypoints() -> None:
     )
     assert "Функция КлиентПоЗапросу" in security
     assert "Функция ЭтоСлужебныйОбъект" in security
+    assert "Функция ПроверитьЛимитыКлиента" in security
     data = (SRC / "CommonModules" / "мкпДанные" / "Ext" / "Module.bsl").read_text(encoding="utf-8")
     assert "Функция Список" in data
     assert "Функция ПолучитьПоИд" in data
+    assert "Функция Предпросмотр" in data
+    assert "Функция Создать" in data
+    assert "Функция Провести" in data
+    assert "Функция ОткатитьСессию" in data
     meta = (SRC / "CommonModules" / "мкпИнтроспекция" / "Ext" / "Module.bsl").read_text(
         encoding="utf-8"
     )
     assert "Функция ПоискСемантики" in meta
+    queries = (SRC / "CommonModules" / "мкпЗапросы" / "Ext" / "Module.bsl").read_text(
+        encoding="utf-8"
+    )
+    assert "Функция ПроверитьТекстВыборки" in queries
+    reports = (SRC / "CommonModules" / "мкпОтчёты" / "Ext" / "Module.bsl").read_text(encoding="utf-8")
+    assert "Функция ВыполнитьПоТелу" in reports
+    jobs = (SRC / "CommonModules" / "мкпЗадания" / "Ext" / "Module.bsl").read_text(encoding="utf-8")
+    assert "Функция Поставить" in jobs
+    assert "Функция Получить" in jobs
+    actions = (SRC / "CommonModules" / "мкпДействия" / "Ext" / "Module.bsl").read_text(encoding="utf-8")
+    assert "Функция ВыполнитьПоТелу" in actions
+    admin = (
+        SRC / "DataProcessors" / "мкпАдминистрированиеКоннектора" / "Ext" / "ObjectModule.bsl"
+    ).read_text(encoding="utf-8")
+    assert "Функция СгенерироватьТокенКлиента" in admin
+    assert "Функция ЧеклистПубликации" in admin
+    assert "Функция Самодиагностика" in admin
+    assert "not_required" in admin
+    assert "ХешТокена" in admin

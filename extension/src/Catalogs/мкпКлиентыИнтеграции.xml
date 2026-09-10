@@ -250,6 +250,94 @@
 				<DataHistory>Use</DataHistory>
 				</Properties>
 			</Attribute>
+			<Attribute uuid="f98f2156-066e-4981-af1c-aca837216a0e">
+				<Properties>
+					<Name>ЛимитСуммы</Name>
+			<Synonym>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Лимит суммы</v8:content>
+				</v8:item>
+			</Synonym>
+					<Comment>0 — без ограничения. Проверяется на dry-run и записи.</Comment>
+				<Type>
+					<v8:Type>xs:decimal</v8:Type>
+					<v8:NumberQualifiers>
+						<v8:Digits>15</v8:Digits>
+						<v8:FractionDigits>2</v8:FractionDigits>
+						<v8:AllowedSign>Nonnegative</v8:AllowedSign>
+					</v8:NumberQualifiers>
+				</Type>
+				<PasswordMode>false</PasswordMode>
+				<Format/>
+				<EditFormat/>
+				<ToolTip/>
+				<MarkNegatives>false</MarkNegatives>
+				<Mask/>
+				<MultiLine>false</MultiLine>
+				<ExtendedEdit>false</ExtendedEdit>
+				<MinValue xsi:nil="true"/>
+				<MaxValue xsi:nil="true"/>
+				<FillFromFillingValue>false</FillFromFillingValue>
+				<FillValue xsi:nil="true"/>
+				<FillChecking>DontCheck</FillChecking>
+				<ChoiceFoldersAndItems>Items</ChoiceFoldersAndItems>
+				<ChoiceParameterLinks/>
+				<ChoiceParameters/>
+				<QuickChoice>Auto</QuickChoice>
+				<CreateOnInput>Auto</CreateOnInput>
+				<ChoiceForm/>
+				<LinkByType/>
+				<ChoiceHistoryOnInput>Auto</ChoiceHistoryOnInput>
+				<Indexing>DontIndex</Indexing>
+				<FullTextSearch>Use</FullTextSearch>
+				<DataHistory>Use</DataHistory>
+				</Properties>
+			</Attribute>
+			<Attribute uuid="f91b2201-f93d-4ca1-9191-f935b246ce05">
+				<Properties>
+					<Name>ЛимитКоличества</Name>
+			<Synonym>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Лимит количества</v8:content>
+				</v8:item>
+			</Synonym>
+					<Comment>0 — без ограничения. Сумма Quantity/Количество и строк табличных частей.</Comment>
+				<Type>
+					<v8:Type>xs:decimal</v8:Type>
+					<v8:NumberQualifiers>
+						<v8:Digits>15</v8:Digits>
+						<v8:FractionDigits>3</v8:FractionDigits>
+						<v8:AllowedSign>Nonnegative</v8:AllowedSign>
+					</v8:NumberQualifiers>
+				</Type>
+				<PasswordMode>false</PasswordMode>
+				<Format/>
+				<EditFormat/>
+				<ToolTip/>
+				<MarkNegatives>false</MarkNegatives>
+				<Mask/>
+				<MultiLine>false</MultiLine>
+				<ExtendedEdit>false</ExtendedEdit>
+				<MinValue xsi:nil="true"/>
+				<MaxValue xsi:nil="true"/>
+				<FillFromFillingValue>false</FillFromFillingValue>
+				<FillValue xsi:nil="true"/>
+				<FillChecking>DontCheck</FillChecking>
+				<ChoiceFoldersAndItems>Items</ChoiceFoldersAndItems>
+				<ChoiceParameterLinks/>
+				<ChoiceParameters/>
+				<QuickChoice>Auto</QuickChoice>
+				<CreateOnInput>Auto</CreateOnInput>
+				<ChoiceForm/>
+				<LinkByType/>
+				<ChoiceHistoryOnInput>Auto</ChoiceHistoryOnInput>
+				<Indexing>DontIndex</Indexing>
+				<FullTextSearch>Use</FullTextSearch>
+				<DataHistory>Use</DataHistory>
+				</Properties>
+			</Attribute>
 		</ChildObjects>
 	</Catalog>
 </MetaDataObject>

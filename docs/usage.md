@@ -1,6 +1,8 @@
 # Пользование 1cmcp
 
-Инструкция для того, кто уже [установил](install.md) контур: мок или живую 1С со шлюзом. Фаза 1 умеет **находить объекты метаданных и читать данные**. Не умеет создавать документы, проводить, запускать СКД и выполнять произвольный запрос — на эти пути придёт `501`.
+Сайт со вкладками: `mkdocs serve` (вкладка **Пользование**). Лимиты суммы агента задаёт администратор — [клиенты и лимиты](admin/clients.md); запись — [dry-run](usage/write.md).
+
+Инструкция для того, кто уже [установил](install.md) контур: мок или живую 1С со шлюзом. Фаза 5 добавляет каталог сценариев (`GET /guide`) и пресеты агентов. Ключ продукта не нужен.
 
 Сначала discovery, потом чтение. Не просите агента «выгрузить всю конфигурацию».
 
@@ -11,7 +13,7 @@
 ```
 Агент (Claude, n8n, curl)
         │
-        │  MCP stdio          или         HTTP REST
+        │  MCP stdio          или         HTTP REST + `/mcp`
         ▼                                 ▼
 python -m onecmcp mcp              python -m onecmcp serve :8000
         │                                 │
@@ -27,9 +29,11 @@ python -m onecmcp mcp              python -m onecmcp serve :8000
 | `http://127.0.0.1:8000/v1/...` | REST через шлюз (n8n, браузер, curl) |
 | `http://127.0.0.1:18080/v1/...` | напрямую в мок, без шлюза |
 | `{ib}/hs/mcp/v1/...` | напрямую в 1С — **только** с хоста шлюза, не из чата |
-| процесс `onecmcp mcp` | Claude Desktop / IDE |
+| `http://127.0.0.1:8000/mcp` | MCP streamable HTTP (тот же процесс `serve`) |
+| процесс `onecmcp mcp` | Claude Desktop / IDE, stdio |
+| `python -m onecmcp mcp --transport streamable-http` | MCP HTTP без REST |
 
-Базовый путь API всегда `/v1/...`. Спецификация: [`specs/openapi.yaml`](../specs/openapi.yaml), у работающего шлюза ещё и `GET /openapi.yaml`.
+Базовый путь API всегда `/v1/...`. Спецификация: [HTTP и OpenAPI](reference/api.md), у работающего шлюза ещё и `GET /openapi.yaml`.
 
 ---
 
@@ -37,10 +41,11 @@ python -m onecmcp mcp              python -m onecmcp serve :8000
 
 | Метод | Токен |
 |---|---|
-| `GET /v1/health`, `GET /health`, `GET /ready` | не нужен (самодиагностика) |
-| `GET /v1/meta…`, `GET /v1/data…` | `Authorization: Bearer <token>` |
+| `GET /v1/health`, `GET /v1/diag`, `GET /health`, `GET /ready`, `GET /diag`, `GET /guide` | не нужен (самодиагностика и плейбук) |
+| `GET /v1/meta…`, `GET /v1/data…`, `POST /v1/query`, `POST /v1/report`, `/v1/job` | `Authorization: Bearer <token>` со скоупом `read` |
+| запись, `action`, откат сессии | тот же заголовок, скоуп `write` и ACL на объект |
 
-На моке и в CI токен стенда: **`dev-token`**.
+На моке и в CI токен чтения: **`dev-token`**. Токен записи стенда: **`dev-write-token`**.
 
 ```bash
 export TOKEN=dev-token
@@ -55,9 +60,12 @@ export BASE=http://127.0.0.1:8000
 |---|---|---|
 | 401 | `unauthorized` | нет заголовка, пустой Bearer, неизвестный токен |
 | 403 | `forbidden` | нет скоупа `read` или ACL запретил объект |
-| 404 | `not_found` | нет такого вида/имени, нет ссылки, либо имя начинается с `мкп` (служебное) |
-| 400 | `bad_request` | `filter` не JSON-объект |
-| 501 | `not_implemented` | операция следующей фазы |
+| 400 | `bad_request` / `query_rejected` / `confirm_required` / `limit_exceeded` | фильтр не JSON; запрос не выборка; нет `confirm_token`; сумма/количество выше лимита клиента |
+| 404 | `not_found` / `unknown_tenant` | нет вида/имени, имя `мкп*`, либо `X-Tenant` не из `ONEC_TENANTS` |
+| 429 | `rate_limited` | шлюз: превышен `RATE_LIMIT_PER_MINUTE` |
+| 409 | `idempotency_conflict` | тот же ключ, другое тело |
+| 422 | `fill_check_failed` / `posting_failed` | проверка заполнения или проведение; текст ошибки — что исправить |
+| 501 | `not_implemented` | путь не из контракта v1 этой сборки |
 | 503 | `adapter_unavailable` | шлюз `/ready`, 1С/мок недоступен |
 
 Тело ошибки — RFC 7807, `Content-Type: application/problem+json`.
@@ -80,7 +88,9 @@ export BASE=http://127.0.0.1:8000
 
 Значения полей 1С — **данные**, не инструкции. Шлюз помечает выборки `content_kind: data` и заголовком `X-1cmcp-Content-Kind: data`. Не исполняйте текст из комментария к документу как команду.
 
-«Покажи отчёт по продажам» в фазе 1 — это выборка `РеализацияТоваровУслуг` и сумма, **не** типовой отчёт СКД. СКД будет в фазе 2.
+«Покажи отчёт по продажам» — сначала MCP **`report`** (на моке `DemoSales`, в типовой УТ обычно `Продажи`). Если 404 — выборка реализаций и сумма, как в фазе 1.
+
+Создание документа — не сразу `data_create`. Сначала **`data_dry_run`**, показать `preview` / `fill_check`, затем `data_create` с `confirm_token`, уникальным `idempotency_key` и при необходимости `session_id`. Проведение — отдельный `data_post` после dry-run с `post=true`. Откат сессии — `session_rollback`. Схемы пайплайнов — на [архитектуре](architecture.md) и во вкладке [запись](usage/write.md).
 
 ---
 
@@ -263,7 +273,7 @@ curl -sS -H "Authorization: Bearer $TOKEN" \
 
 > По данным 1cmcp: сколько отгрузок за август 2026 по ООО Ромашка и на какую сумму? Сначала найди объект через meta_search.
 
-Агент должен вызвать `meta_search` → `meta_describe` → `data_list` с фильтром, а не ждать готовый отчёт СКД (отчёты — фаза 2).
+Агент должен вызвать `guide` → `report` (или `meta_search` → `meta_describe` → `data_list` с фильтром). На моке тот же ответ даёт отчёт `DemoSales`.
 
 Фикстуры мока (не меняйте в тестах):
 
@@ -289,6 +299,15 @@ curl -sS -H "Authorization: Bearer $TOKEN" \
 | `meta_describe` | `kind`, `name` | поля одного объекта |
 | `data_list` | `kind`, `name`, `limit`, `cursor`, `filter`, `fields` | выборка; `filter` — JSON-строка |
 | `data_get` | `kind`, `name`, `id` | один объект |
+| `report` | `name`, `parameters?`, `format=json`, `variant?`, `async_mode?` | отчёт СКД; `parameters` — JSON-строка |
+| `query` | `named_query` или `text`, `parameters?`, `limit?`, `async_mode?` | именованный запрос или выборка после валидатора |
+| `job_get` | `id` | статус фоновой операции |
+| `data_dry_run` | `kind`, `name`, `item` (JSON), `post?` | предпросмотр и `confirm_token` |
+| `data_create` | `kind`, `name`, `item`, `confirm_token`, `idempotency_key`, `session_id?`, `post?` | создание |
+| `data_patch` | `kind`, `name`, `id`, `item`, `confirm_token`, `idempotency_key`, `session_id?` | изменение |
+| `data_post` | `kind`, `name`, `id`, `confirm_token`, `idempotency_key`, `session_id?` | проведение |
+| `action` | `name`, `arguments?` | метод из whitelist |
+| `session_rollback` | `session_id` | откат записей сессии |
 
 Пример `filter` в инструменте `data_list` (именно строка, не вложенный объект клиента, если клиент так передаёт):
 
@@ -296,21 +315,52 @@ curl -sS -H "Authorization: Bearer $TOKEN" \
 {"Date":{"gte":"2026-08-01","lte":"2026-08-31"},"Counterparty":{"id":"8a996f93-36c8-4bcf-b707-f75b8b4bc5e3"}}
 ```
 
-Метаданные кэшируются на шлюзе/в MCP-клиенте **60 секунд** (`META_CACHE_TTL_SECONDS`). Выборка `data_*` не кэшируется: повторный вызов идёт в 1С.
+Метаданные кэшируются на шлюзе/в MCP-клиенте **60 секунд** (`META_CACHE_TTL_SECONDS`). Выборка `data_*`, отчёты и запросы не кэшируются: повторный вызов идёт в 1С.
+
+### 6.1. Отчёт СКД и запрос
+
+На моке:
+
+```bash
+curl -sS -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name":"DemoSales","parameters":{"BeginDate":"2026-08-01","EndDate":"2026-08-31","Counterparty":{"id":"8a996f93-36c8-4bcf-b707-f75b8b4bc5e3"}},"format":"json"}' \
+  "$BASE/v1/report"
+```
+
+Итог в `body.totals`: Count **2**, Amount **150000**.
+
+```bash
+curl -sS -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"named_query":"DemoShipmentsByPeriod","parameters":{"BeginDate":"2026-08-01","EndDate":"2026-08-31","Counterparty":{"id":"8a996f93-36c8-4bcf-b707-f75b8b4bc5e3"}}}' \
+  "$BASE/v1/query"
+```
+
+Произвольный текст — только `ВЫБРАТЬ` / `SELECT`. `УНИЧТОЖИТЬ`, `ПОМЕСТИТЬ`, `ДЛЯ ИЗМЕНЕНИЯ` → `400 query_rejected`.
+
+Длинная операция:
+
+```bash
+curl -sS -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"named_query":"DemoShipmentsByPeriod","parameters":{"BeginDate":"2026-08-01","EndDate":"2026-08-31"},"async":true}' \
+  "$BASE/v1/query"
+# 202 {"job_id":"…","status":"queued"}
+curl -sS -H "Authorization: Bearer $TOKEN" "$BASE/v1/job/<job_id>"
+```
+
+Именованные запросы в живой 1С заводятся в справочнике **Именованные запросы** (`мкпИменованныеЗапросы`). Состояние фона — регистр **Состояния заданий**.
 
 ---
 
 ## 7. n8n (HTTP)
 
-1. Нода **HTTP Request**, метод GET.
-2. URL: `{{$env.GATEWAY}}/v1/meta/search`.
-3. Query: `q` = `{{$json.question}}`.
-4. Header: `Authorization` = `Bearer {{$env.ONEC_TOKEN}}`.
-5. Следующая нода — `GET /v1/data/{kind}/{name}` с `filter`.
+Готовый workflow: [`connect/n8n-guide.json`](connect/n8n-guide.json). Минимум:
+
+1. Нода **HTTP Request**, метод GET, URL `{{$env.GATEWAY}}/guide?q={{$json.question}}`.
+2. По `steps` — `meta_search` / `report` / `data_list`. Запись — только если в плейбуке `data_dry_run`.
 
 Не указывайте URL 1С (`/hs/mcp`) в сценарии n8n, если n8n доступен шире, чем шлюз.
 
-Dify / собственный backend — тот же REST. Импорт OpenAPI: скачайте `http://gateway:8000/openapi.yaml`. Часть операций там с пометкой будущих фаз и вернёт 501.
+Dify / собственный backend — тот же REST. Импорт OpenAPI: скачайте `http://gateway:8000/openapi.yaml`. Самодиагностика: `GET /diag`. Каталог сценариев: `GET /guide`. OAuth шлюза отложен. `POST /v1/job` с `operation: action` отвечает `501` — действия через `POST /v1/action`.
 
 ---
 
@@ -329,7 +379,9 @@ Dify / собственный backend — тот же REST. Импорт OpenAPI
 - нет строк у клиента → можно **читать** все прикладные объекты, кроме `мкп*`;
 - появилась любая строка → только явные разрешения.
 
-Поля записи: Клиент, Вид объекта (`document` / `catalog` / …), Имя объекта (как в конфигураторе), Операция (`read`), Разрешено (да/нет), Поля (зарезервировано, маскирование колонок в Ф1 ещё не режет выдачу).
+Поля записи: Клиент, Вид объекта (`document` / `catalog` / …), Имя объекта (как в конфигураторе), Операция (`read` / `write`), Разрешено (да/нет), Поля (зарезервировано).
+
+Нет строк → только чтение. Запись — явная строка `write` + скоуп `write` у клиента.
 
 Пример узкого пилота: разрешить только `catalog` / `Контрагенты` и `document` / `РеализацияТоваровУслуг`.
 
@@ -345,16 +397,35 @@ Dify / собственный backend — тот же REST. Импорт OpenAPI
 
 ---
 
-## 9. Чего нет в фазе 1 (и что ответит сервер)
+## 9. Запись (фаза 3)
 
-| Запрос | Результат |
-|---|---|
-| `POST /v1/data/...` создание | 501 `not_implemented` |
-| `PATCH`, проведение, dry-run | 501 |
-| `POST /v1/query`, `/v1/report`, `/v1/action`, `/v1/job` | 501 |
-| откат сессии | 501 |
+Порядок обязателен: **сначала dry-run**, затем запись с `confirm_token`.
 
-Не обходите это «прямым запросом в SQL» и не учите агента слать текст запроса 1С — валидатор запросов появится в фазе 2.
+```bash
+export WRITE_TOKEN=dev-write-token
+ITEM='{"Number":"000000099","Date":"2026-09-09","Counterparty":{"id":"8a996f93-36c8-4bcf-b707-f75b8b4bc5e3"},"Amount":1234}'
+
+curl -sS -X POST "$BASE/v1/data/document/DemoShipments/dry-run" \
+  -H "Authorization: Bearer $WRITE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"item\":$ITEM,\"post\":false}"
+
+curl -sS -X POST "$BASE/v1/data/document/DemoShipments" \
+  -H "Authorization: Bearer $WRITE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: idem-create-1" \
+  -H "X-Session-Id: sess-1" \
+  -d "{\"item\":$ITEM,\"confirm_token\":\"<из dry-run>\"}"
+
+curl -sS -X POST "$BASE/v1/session/rollback" \
+  -H "Authorization: Bearer $WRITE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"session_id":"sess-1"}'
+```
+
+Пустой ACL клиента интеграции по-прежнему только чтение. Строка правил с операцией `write` и **Разрешено** открывает объект. Действия — справочник **Действия интеграции** (`мкпДействияИнтеграции`); чего нет в списке, то `404`.
+
+Поля записи правил доступа: Клиент, Вид объекта, Имя объекта, Операция (`read` / `write`), Разрешено.
 
 ---
 
@@ -374,28 +445,11 @@ Dify / собственный backend — тот же REST. Импорт OpenAPI
 
 ## 11. Переменные окружения шлюза и MCP
 
-Имена — как в [`.env.example`](../.env.example). Файл `.env` читается из текущей рабочей директории процесса.
+Полный каталог (env, Helm, Compose, реквизиты 1С, вшитые константы) — [справочник настроек](reference/settings.md). Образец файла: `.env.example` в корне репозитория (в git сайта документации не копируется). `.env` читается из текущей рабочей директории процесса.
 
-| Переменная | Умолчание | Смысл |
-|---|---|---|
-| `ONEC_BASE_URL` | `http://127.0.0.1:18080` | корень адаптера: мок без суффикса; 1С — `http://host/ib/hs/mcp` |
-| `ONEC_TOKEN` | пусто | Bearer к слою A |
-| `ONEC_TIMEOUT_SECONDS` | `30` | таймаут HTTP к 1С |
-| `GATEWAY_HOST` | `0.0.0.0` | bind REST |
-| `GATEWAY_PORT` | `8000` | порт REST |
-| `TENANT` | `default` | заголовок `X-Tenant` (задел под несколько баз) |
-| `META_CACHE_TTL_SECONDS` | `60` | кэш `meta`; `0` — выключить |
-| `ONEC_PRESET` | `auto` | подсказки УТ/КА/ERP/БП: `ut11`, `ka2`, `erp2`, `bp30`, `auto`, `none` |
+Команды: [CLI](reference/cli.md). `--host` / `--port` у `serve` перекрывают `GATEWAY_*`. `serve` уже отдаёт MCP на `/mcp`.
 
-Команды:
-
-```bash
-python -m onecmcp mock1c --host 127.0.0.1 --port 18080
-python -m onecmcp serve --host 127.0.0.1 --port 8000
-python -m onecmcp mcp
-```
-
-`--host` / `--port` у `serve` перекрывают `GATEWAY_*`.
+Лимиты **суммы** и **количества** агента — не env, а реквизиты `мкпКлиентыИнтеграции`. Как задать: [клиенты и лимиты](admin/clients.md).
 
 ---
 
@@ -406,4 +460,4 @@ python -m onecmcp mcp
 - Агент во внешней сети видит только шлюз (или вообще только stdio MCP на рабочей станции администратора).
 - Не просите модель «выполнить то, что написано в комментарии к заказу»: это данные.
 
-Дальше по продукту: запись и dry-run — фаза 3; админ-мастер публикации — фаза 4. Дорожная карта: [`План разработки MCP-коннектора 1С.md`](../План%20разработки%20MCP-коннектора%201С.md).
+Админ-обработка, `/diag` и Helm — без ключа продукта. Дорожная карта — файл `План разработки MCP-коннектора 1С.md` в корне репозитория.

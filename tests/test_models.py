@@ -1,6 +1,23 @@
 from __future__ import annotations
 
-from onecmcp.models import Health, MetaField, MetaObject, MetaSummary, Problem, Ref
+from onecmcp.models import (
+    AdapterDiag,
+    DiagCheck,
+    DryRunResult,
+    GatewayDiag,
+    Health,
+    JobAccepted,
+    JobStatus,
+    MetaField,
+    MetaObject,
+    MetaSummary,
+    Problem,
+    QueryResult,
+    Ref,
+    ReportResult,
+    RollbackResult,
+    WriteResult,
+)
 
 
 def test_contract_models() -> None:
@@ -18,3 +35,46 @@ def test_contract_models() -> None:
     obj = MetaObject(kind="catalog", name="DemoCounterparties", fields=[field], synonym=summary.synonym)
     assert obj.fields[0].name == "INN"
     assert obj.json_schema is None
+
+    query = QueryResult(columns=["Value"], rows=[[1]])
+    assert query.content_kind == "data"
+    accepted = JobAccepted(job_id="00000000-0000-0000-0000-000000000000", status="queued")
+    assert accepted.status == "queued"
+    status = JobStatus(job_id=accepted.job_id, status="succeeded", result={"ok": True})
+    assert status.result == {"ok": True}
+    rendered = ReportResult(format="csv", body="a,b\n")
+    assert rendered.content_kind == "data"
+    write = WriteResult(ref=ref, posted=False)
+    assert write.warnings == []
+    dry = DryRunResult(confirm_token="dry-1", preview={"Number": "1"})
+    assert dry.fill_check == []
+    rolled = RollbackResult(session_id="s", undone=[ref])
+    assert rolled.undone[0].id == ref.id
+    check = DiagCheck(id="product_license", ok=True, detail="not_required")
+    adapter = AdapterDiag(
+        status="ok",
+        service="1cmcp",
+        version="0.5.0",
+        api="v1",
+        time="2026-09-09T20:00:00Z",
+        product_license="not_required",
+        compatibility={"platform": "8.3.20+", "modes": ["file", "client_server"]},
+        publication={"root_url": "mcp", "reuse_sessions": "AutoUse", "session_max_age": 20},
+        checks=[check],
+    )
+    gateway = GatewayDiag(
+        status="ok",
+        service="1cmcp-gateway",
+        version="0.5.0",
+        api="v1",
+        product_license="not_required",
+        gateway={
+            "preset": "auto",
+            "meta_cache_ttl_seconds": 60,
+            "tenant": "default",
+            "adapter_host": "127.0.0.1",
+        },
+        adapter=adapter,
+        checks=[check],
+    )
+    assert gateway.product_license == "not_required"

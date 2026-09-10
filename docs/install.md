@@ -1,5 +1,7 @@
 # Установка 1cmcp
 
+Сайт документации со вкладками (схемы, все настройки): из корня репозитория `pip install -r requirements-docs.txt && mkdocs serve`. Разделы этой страницы дублируются на вкладке **Установка**.
+
 Это руководство для внедренца и администратора. Продукт состоит из двух частей, которые ставятся отдельно:
 
 | Часть | Где | Зачем |
@@ -9,7 +11,7 @@
 
 Прямая публикация HTTP-сервиса 1С в интернет **запрещена**. Снаружи виден только шлюз. Между шлюзом и 1С — внутренняя сеть, VPN или mTLS.
 
-Сейчас фаза 1: чтение и интроспекция. Запись документов, отчёты СКД и произвольные запросы ещё не включены (шлюз и расширение отвечают `501`).
+Сейчас фаза 4: ставится по этой инструкции без ключа продукта. Обработка **Администрирование коннектора** генерирует токен и показывает чеклист публикации. Самопроверка: `GET /v1/diag` и `GET /diag`. Политика платформы — [compatibility.md](compatibility.md).
 
 Два контура:
 
@@ -48,15 +50,16 @@ git clone https://github.com/chastnik/1cmcp.git
 cd 1cmcp
 ```
 
-Рабочая ветка фазы 1 — `main` после слияния PR либо `cursor/phase1-read-introspection-e909`, пока PR открыт.
+Рабочая ветка фазы 4 — `cursor/phase4-productization-e909`, пока PR открыт.
 
 Структура, которая нужна при установке:
 
 ```
 extension/src/          ← выгрузка расширения для Конфигуратора
 gateway/                ← пакет Python onecmcp
+deploy/helm/onecmcp/    ← Helm-чарт шлюза
 specs/openapi.yaml      ← контракт HTTP API
-docs/                   ← это руководство и ADR
+docs/                   ← это руководство, compatibility.md и ADR
 docker-compose.yml
 .env.example
 docs/claude-desktop.mcp.json
@@ -138,15 +141,27 @@ docker compose up --build
 | `mock1c` | 18080 | мок адаптера 1С |
 | `gateway` | 8000 | REST-шлюз; ходит в мок с токеном `dev-token` |
 
-Проверка та же: `curl http://127.0.0.1:8000/v1/health`.
+Проверка та же: `curl http://127.0.0.1:8000/v1/health` и `curl http://127.0.0.1:8000/diag`. Compose ждёт healthy мока, затем поднимает шлюз.
 
 Остановка: `Ctrl+C` или `docker compose down`.
+
+### 3.3. Helm (шлюз в кластере)
+
+Чарт: `deploy/helm/onecmcp`. Ключ продукта в values нет.
+
+```bash
+helm upgrade --install onecmcp deploy/helm/onecmcp \
+  --set onec.baseUrl=http://1c.internal/ib/hs/mcp \
+  --set onec.token="$ONEC_TOKEN"
+```
+
+`ONEC_TOKEN` попадает в Secret, не в Deployment env plaintext в values на диске кластера — всё равно не коммитьте боевой токен в git. Пробы: `/health` и `/ready`.
 
 ---
 
 ## 4. Контур с живой 1С: расширение
 
-Админ-панели в расширении ещё нет (фаза 4). Настройка клиентов, токенов и словаря делается через стандартные формы справочника и регистров сведений.
+Настройка — обработка **1cmcp. Администрирование коннектора** (`мкпАдминистрированиеКоннектора`): генерация токена, чеклист публикации, самодиагностика. Справочники и регистры по-прежнему можно править стандартными формами. Ключ продукта не спрашивается.
 
 ### 4.1. Загрузка из файлов (каталог `extension/src`)
 
@@ -169,6 +184,7 @@ docker compose up --build
 - роль `мкпДоступКоннектора`
 - общие модули `мкпМаршрутизатор`, `мкпБезопасность`, `мкпСериализация`, `мкпИнтроспекция`, `мкпДанные`
 - HTTP-сервис `мкпAPI` (корневой URL `mcp`)
+- обработка `мкпАдминистрированиеКоннектора`
 - справочник `мкпКлиентыИнтеграции`
 - регистры `мкпПравилаДоступа`, `мкпСемантическийСловарь`, `мкпЖурналВызовов`
 
@@ -201,7 +217,9 @@ HTTP-сервис исполняется **не** от имени живого �
 
 Токен в базе **не хранится**. Хранится SHA-256 (64 шестнадцатеричных символа, нижний регистр).
 
-На машине администратора:
+Предпочтительный путь — обработка **Администрирование коннектора**: команда генерации токена показывает plaintext **один раз**, в элемент справочника пишет только хеш. Скопируйте токен в `ONEC_TOKEN` шлюза сразу.
+
+Запасной путь на машине администратора:
 
 ```bash
 python3 -c "import hashlib,secrets; t=secrets.token_urlsafe(32); print('TOKEN='+t); print('HASH='+hashlib.sha256(t.encode()).hexdigest())"
@@ -221,7 +239,7 @@ HASH=c91cbbedf8c712e8e2b7517ddeca8fe4fde839ebd8339e0b2001363002b37712
 3. Заполните:
    - **Наименование** — человекочитаемое имя приложения;
    - **Хеш токена** — 64 символа HASH, без пробелов;
-   - **Скоупы** — строка `read` (через запятую можно `read,write`, но запись в Ф1 всё равно `501`; без `read` будет 403);
+   - **Скоупы** — строка `read` или `read,write`. Запись требует скоуп `write` **и** строку ACL с операцией `write`;
    - **Пользователь ИБ** — имя пользователя из п. 4.3, для журнала;
    - **Активен** — да.
 4. Запишите. Сам TOKEN сохраните в секрет шлюза (`ONEC_TOKEN` / менеджер секретов), не в git и не в комментарий элемента.
@@ -248,7 +266,7 @@ HASH=c91cbbedf8c712e8e2b7517ddeca8fe4fde839ebd8339e0b2001363002b37712
 
 `catalog`, `document`, `information_register`, `accumulation_register`, `accounting_register`, `chart_of_accounts`, `chart_of_characteristic_types`, `enum`, `report`, `data_processor`, `constant`.
 
-Для чтения в Ф1 осмысленны в первую очередь `catalog`, `document`, `information_register`, `accumulation_register`.
+Для чтения осмысленны в первую очередь `catalog`, `document`, `information_register`, `accumulation_register`. Отчёты СКД — `report`. Запись — `catalog` и `document` после dry-run.
 
 ### 4.6. Публикация на веб-сервере
 
@@ -276,7 +294,7 @@ curl -sS "http://1c-web/ut11/hs/mcp/v1/health"
 {
   "status": "ok",
   "service": "1cmcp",
-  "version": "0.2.0",
+  "version": "0.7.0",
   "api": "v1",
   "time": "2026-09-09T18:00:00Z"
 }
@@ -291,7 +309,7 @@ curl -sS "http://1c-web/ut11/hs/mcp/v1/health"
 - Публикация 1С слушает localhost / внутренний интерфейс / VPN.
 - Файрвол: с хоста шлюза на порт Apache/IIS — да; из интернета на `/hs/` — нет.
 - TLS между шлюзом и 1С желателен даже во внутренней сети.
-- На проде планируйте mTLS; в Ф1 достаточно сети, недоступной агентам напрямую.
+- На проде планируйте mTLS; на стенде достаточно сети, недоступной агентам напрямую.
 
 ---
 
@@ -323,7 +341,7 @@ ONEC_PRESET=ut11
 
 `ONEC_PRESET` включает подсказки имён типовой: `ut11`, `ka2`, `erp2`, `bp30`, `auto`, `none`. На УТ поставьте `ut11`, на бухгалтерии — `bp30`. Зачем это нужно: [пресеты и навыки](skills.md).
 
-Если веб-сервер 1С требует Basic/Windows-аутентификацию пользователя `мкпШлюз`, её нужно прокинуть отдельно (в Ф1 клиент шлюза шлёт только `Authorization: Bearer` токена коннектора). Практичный вариант стенда: публикация HTTP-сервисов с пользователем по умолчанию, без запроса пароля 1С у шлюза; изоляция — сетью.
+Если веб-сервер 1С требует Basic/Windows-аутентификацию пользователя `мкпШлюз`, её нужно прокинуть отдельно (клиент шлюза шлёт `Authorization: Bearer` токена коннектора). Практичный вариант стенда: публикация HTTP-сервисов с пользователем по умолчанию, без запроса пароля 1С у шлюза; изоляция — сетью.
 
 Запуск:
 
@@ -339,6 +357,15 @@ curl -sS http://127.0.0.1:8000/ready
 
 `/ready` ходит в `/v1/health` адаптера. `200` — контур живой. `503` с `code: adapter_unavailable` — шлюз не достучался до 1С (URL, сеть, публикация).
 
+Самодиагностика (версия, пресет, TTL кэша, чеклист публикации, **без токена**):
+
+```bash
+curl -sS http://127.0.0.1:8000/diag
+curl -sS http://127.0.0.1:8000/v1/diag
+```
+
+`product_license` всегда `not_required`. Если адаптер недоступен, `/diag` отвечает `200` со `status: degraded`.
+
 OpenAPI контракта:
 
 ```
@@ -349,7 +376,7 @@ http://127.0.0.1:8000/openapi.yaml
 
 ## 6. Подключить агента (MCP)
 
-Шлюз REST (`serve`) и процесс MCP (`mcp`) — **разные** входы. Claude Desktop запускает MCP через stdio и сам ходит в слой A по `ONEC_BASE_URL`. Ему не обязателен `serve`, если агенту не нужен HTTP.
+Шлюз REST (`serve`) отдаёт и MCP streamable HTTP на `/mcp`. Claude Desktop по-прежнему запускает отдельный процесс stdio (`python -m onecmcp mcp`).
 
 ### 6.1. Claude Desktop
 
@@ -358,7 +385,7 @@ http://127.0.0.1:8000/openapi.yaml
 - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 
-Вставьте сервер из [`docs/claude-desktop.mcp.json`](claude-desktop.mcp.json). **Замените** `command` на абсолютный путь к Python из venv (иначе Desktop может взять системный 3.11 и упасть):
+Подключение Claude Desktop: вставьте сервер из [`docs/connect/claude-desktop.mcp.json`](connect/claude-desktop.mcp.json) (копия: [`docs/claude-desktop.mcp.json`](claude-desktop.mcp.json)). **Замените** `command` на абсолютный путь к Python из venv.
 
 ```json
 {
@@ -379,22 +406,24 @@ http://127.0.0.1:8000/openapi.yaml
 
 Для живой 1С поставьте `ONEC_BASE_URL` как в `.env` шлюза и **боевой** токен.
 
-Перезапустите Claude Desktop. В списке MCP-серверов должен появиться `1cmcp` с инструментами `health`, `meta_list`, `meta_search`, `meta_describe`, `data_list`, `data_get`.
+Перезапустите Claude Desktop. В списке MCP-серверов должен появиться `1cmcp` с инструментами `health`, `diag`, `guide`, `meta_*`, `data_*`, `report`, `query`, `job_get`, `action`, `session_rollback`.
 
 ### 6.2. Claude Code / Cursor
 
-Тот же JSON в `.mcp.json` проекта или в настройках MCP IDE. Команда — `python -m onecmcp mcp` из окружения, где установлен `onecmcp`.
+Файл [`connect/cursor.mcp.json`](connect/cursor.mcp.json) в `.mcp.json` проекта. Команда — `python -m onecmcp mcp` из окружения, где установлен `onecmcp`.
+
+Если шлюз уже запущен (`serve`), Cursor может ходить на streamable HTTP: [`connect/http.mcp.json`](connect/http.mcp.json) (`url`: `http://127.0.0.1:8000/mcp`).
 
 ### 6.3. n8n, Dify, внутренний сервис без MCP
 
-Они ходят **HTTP на шлюз** (`serve`), не в 1С:
+Они ходят **HTTP на шлюз** (`serve`), не в 1С. Плейбук: `GET http://gateway:8000/guide?q=...`. Workflow: [`connect/n8n-guide.json`](connect/n8n-guide.json).
 
 ```
 GET http://gateway:8000/v1/meta/search?q=контрагент
 Authorization: Bearer <token>
 ```
 
-Шлюз проксирует `/v1/*` в адаптер и подставляет Bearer из `ONEC_TOKEN`, если клиент свой не прислал. На проде лучше, чтобы внешние клиенты не знали токен 1С, а получали отдельный контур (OAuth шлюза — фаза 4). В Ф1 на стенде один Bearer `dev-token` на мок/шлюз допустим.
+Шлюз проксирует `/v1/*` в адаптер и подставляет Bearer из `ONEC_TOKEN`, если клиент свой не прислал. OAuth шлюза отложен: на проде внешние клиенты всё равно не должны ходить в `/hs/mcp`. На стенде один Bearer допустим: `dev-token` для чтения, `dev-write-token` для записи.
 
 ---
 
@@ -404,11 +433,12 @@ Authorization: Bearer <token>
 
 - [ ] `python -m onecmcp --help` или `docker compose ps` показывает процессы
 - [ ] `GET /v1/health` на адаптере (мок или `.../hs/mcp/v1/health`) → 200, `service=1cmcp`
+- [ ] `GET /v1/diag` и `GET /diag` шлюза → `product_license=not_required`, без секретов
 - [ ] `GET /v1/meta` **без** токена → 401
 - [ ] `GET /v1/meta` **с** `Authorization: Bearer …` → 200, в `items` нет имён на `мкп`
 - [ ] `GET /v1/meta/search?q=…` находит объект из словаря или по синониму
 - [ ] `GET /ready` шлюза → 200, внутри есть `adapter`
-- [ ] в Claude Desktop видны шесть инструментов 1cmcp
+- [ ] в Claude Desktop видны инструменты 1cmcp (discovery, отчёты, запись)
 - [ ] на живой 1С: расширение активно, публикация с HTTP-сервисами, пользователь с ролью `мкпДоступКоннектора` и правами чтения прикладных объектов
 - [ ] 1С не открыта с интернета
 
@@ -443,6 +473,7 @@ Authorization: Bearer <token>
 | health 200, meta 401 | не передан Bearer; на живой 1С хеш не совпал (другой токен, лишний перевод строки, хеш не SHA-256 hex) |
 | meta 403 | в скоупах нет `read`; или уже заполнен ACL и объекта нет в белом списке |
 | 404 на `/hs/mcp/v1/health` | публикация без HTTP-сервисов; неверное имя ИБ; расширение не активно |
+| `/diag` со `status: degraded` | шлюз не достучался до адаптера; проверьте `ONEC_BASE_URL` |
 | агент не видит «отгрузки» | нет строки в семантическом словаре; поиск идёт по имени метаданных |
 | в выдаче нет нужного справочника | нет прав пользователя публикации на объект **или** сработало правило ACL |
 | лицензии кончились у пользователей | слишком много сеансов HTTP; проверьте `AutoUse` и число воркеров шлюза |

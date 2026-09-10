@@ -6,6 +6,17 @@ services:
     command: python -m onecmcp mock1c --host 0.0.0.0 --port 18080
     ports:
       - "18080:18080"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18080/v1/health')",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 8
 
   gateway:
     build:
@@ -18,4 +29,16 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - mock1c
+      mock1c:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 8

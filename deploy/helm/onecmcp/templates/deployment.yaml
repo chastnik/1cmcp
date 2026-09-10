@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "onecmcp.fullname" . }}
+  labels:
+    {{- include "onecmcp.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "onecmcp.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        {{- include "onecmcp.labels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: gateway
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - python
+            - -m
+            - onecmcp
+            - serve
+            - --host
+            - {{ .Values.gateway.host | quote }}
+            - --port
+            - {{ .Values.gateway.port | quote }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.gateway.port }}
+              protocol: TCP
+          env:
+            - name: ONEC_BASE_URL
+              value: {{ .Values.onec.baseUrl | quote }}
+            - name: ONEC_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "onecmcp.fullname" . }}
+                  key: onec-token
+            - name: ONEC_TIMEOUT_SECONDS
+              value: {{ .Values.onec.timeoutSeconds | quote }}
+            - name: ONEC_PRESET
+              value: {{ .Values.onec.preset | quote }}
+            - name: TENANT
+              value: {{ .Values.gateway.tenant | quote }}
+            - name: ONEC_TENANTS
+              value: {{ .Values.gateway.tenants | quote }}
+            - name: META_CACHE_TTL_SECONDS
+              value: {{ .Values.gateway.metaCacheTtlSeconds | quote }}
+            - name: RATE_LIMIT_PER_MINUTE
+              value: {{ .Values.gateway.rateLimitPerMinute | quote }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.gateway.otelExporterOtlpEndpoint | quote }}
+            - name: MCP_HTTP_PATH
+              value: {{ .Values.gateway.mcpHttpPath | quote }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -1,0 +1,39 @@
+{
+  "name": "1cmcp guide",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "1cmcp-guide"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.GATEWAY}}/guide",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{$json.question}}"
+            }
+          ]
+        }
+      },
+      "name": "Guide",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [260, 0]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Guide", "type": "main", "index": 0 }]]
+    }
+  }
+}

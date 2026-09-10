@@ -1,0 +1,39 @@
+# Шлюз 1cmcp. Ключ продукта не требуется: лицензирование 1cmcp отложено.
+replicaCount: 1
+
+image:
+  repository: onecmcp
+  tag: "0.7.0"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 8000
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+onec:
+  # Корень HTTP-сервиса слоя A, без /v1
+  baseUrl: http://1c.internal/ib/hs/mcp
+  token: ""
+  timeoutSeconds: 30
+  preset: auto
+
+gateway:
+  host: 0.0.0.0
+  port: 8000
+  tenant: default
+  # CSV id=url или JSON. Пусто — только TENANT + ONEC_BASE_URL.
+  tenants: ""
+  metaCacheTtlSeconds: 60
+  rateLimitPerMinute: 120
+  otelExporterOtlpEndpoint: ""
+  mcpHttpPath: /mcp
