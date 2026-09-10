@@ -33,6 +33,7 @@ def test_openapi_covers_v1_surface() -> None:
         "/v1/job/{id}",
         "/v1/session/rollback",
         "/v1/diag",
+        "/guide",
     }
     assert required <= set(paths)
     assert spec["openapi"].startswith("3.1")

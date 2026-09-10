@@ -1,6 +1,6 @@
 # Пользование 1cmcp
 
-Инструкция для того, кто уже [установил](install.md) контур: мок или живую 1С со шлюзом. Фаза 4 умеет **читать, отчёты, запись после dry-run** и **самодиагностику** (`GET /diag`). Произвольные процедуры — только из whitelist (`POST /v1/action`). Ключ продукта не нужен.
+Инструкция для того, кто уже [установил](install.md) контур: мок или живую 1С со шлюзом. Фаза 5 добавляет каталог сценариев (`GET /guide`) и пресеты агентов. Ключ продукта не нужен.
 
 Сначала discovery, потом чтение. Не просите агента «выгрузить всю конфигурацию».
 
@@ -37,7 +37,7 @@ python -m onecmcp mcp              python -m onecmcp serve :8000
 
 | Метод | Токен |
 |---|---|
-| `GET /v1/health`, `GET /v1/diag`, `GET /health`, `GET /ready`, `GET /diag` | не нужен (самодиагностика) |
+| `GET /v1/health`, `GET /v1/diag`, `GET /health`, `GET /ready`, `GET /diag`, `GET /guide` | не нужен (самодиагностика и плейбук) |
 | `GET /v1/meta…`, `GET /v1/data…`, `POST /v1/query`, `POST /v1/report`, `/v1/job` | `Authorization: Bearer <token>` со скоупом `read` |
 | запись, `action`, откат сессии | тот же заголовок, скоуп `write` и ACL на объект |
 
@@ -348,15 +348,14 @@ curl -sS -H "Authorization: Bearer $TOKEN" "$BASE/v1/job/<job_id>"
 
 ## 7. n8n (HTTP)
 
-1. Нода **HTTP Request**, метод GET.
-2. URL: `{{$env.GATEWAY}}/v1/meta/search`.
-3. Query: `q` = `{{$json.question}}`.
-4. Header: `Authorization` = `Bearer {{$env.ONEC_TOKEN}}`.
-5. Следующая нода — `GET /v1/data/{kind}/{name}` с `filter`.
+Готовый workflow: [`connect/n8n-guide.json`](connect/n8n-guide.json). Минимум:
+
+1. Нода **HTTP Request**, метод GET, URL `{{$env.GATEWAY}}/guide?q={{$json.question}}`.
+2. По `steps` — `meta_search` / `report` / `data_list`. Запись — только если в плейбуке `data_dry_run`.
 
 Не указывайте URL 1С (`/hs/mcp`) в сценарии n8n, если n8n доступен шире, чем шлюз.
 
-Dify / собственный backend — тот же REST. Импорт OpenAPI: скачайте `http://gateway:8000/openapi.yaml`. Самодиагностика: `GET /diag`. OAuth шлюза отложен. `POST /v1/job` с `operation: action` отвечает `501` — действия через `POST /v1/action`.
+Dify / собственный backend — тот же REST. Импорт OpenAPI: скачайте `http://gateway:8000/openapi.yaml`. Самодиагностика: `GET /diag`. Каталог сценариев: `GET /guide`. OAuth шлюза отложен. `POST /v1/job` с `operation: action` отвечает `501` — действия через `POST /v1/action`.
 
 ---
 

@@ -40,6 +40,7 @@
 - [ ] `POST /v1/action` вне whitelist — не 200
 - [ ] `GET /diag` не содержит токен; `product_license` = `not_required`
 - [ ] Helm-чарт `deploy/helm/onecmcp` не содержит ключа продукта
+- [ ] `GET /guide` отдаёт каталог; запись в плейбуке идёт через `data_dry_run`
 
 ## Репозиторий
 

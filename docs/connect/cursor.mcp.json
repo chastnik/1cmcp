@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "1cmcp": {
+      "command": "python",
+      "args": ["-m", "onecmcp", "mcp"],
+      "env": {
+        "ONEC_BASE_URL": "http://127.0.0.1:18080",
+        "ONEC_TOKEN": "dev-token",
+        "ONEC_PRESET": "auto"
+      }
+    }
+  }
+}

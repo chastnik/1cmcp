@@ -160,7 +160,7 @@ def test_diag_models_roundtrip() -> None:
 def test_helm_chart_ships_gateway_without_product_license() -> None:
     chart = yaml.safe_load((HELM / "Chart.yaml").read_text(encoding="utf-8"))
     assert chart["name"] == "onecmcp"
-    assert chart["appVersion"] == "0.5.0"
+    assert chart["appVersion"] == __version__
     values = yaml.safe_load((HELM / "values.yaml").read_text(encoding="utf-8"))
     env = json.dumps(values)
     assert "LICENSE_KEY" not in env
