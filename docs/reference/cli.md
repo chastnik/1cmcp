@@ -19,7 +19,7 @@ python -m onecmcp serve --host 127.0.0.1 --port 8000
 | `--host` | `GATEWAY_HOST` (`0.0.0.0`) | адрес bind |
 | `--port` | `GATEWAY_PORT` (`8000`) | порт |
 
-На этом же порту: `/health`, `/ready`, `/diag`, `/guide`, `/openapi.yaml`, `/v1/*`, `/t/{tenant}/v1/*`, streamable HTTP на `MCP_HTTP_PATH` (`/mcp`).
+На этом же порту: веб-консоль `/`, `/health`, `/ready`, `/diag`, `/guide`, `/openapi.yaml`, `/v1/*`, `/t/{tenant}/v1/*`, streamable HTTP на `MCP_HTTP_PATH` (`/mcp`).
 
 ## `mock1c` — мок слоя A
 

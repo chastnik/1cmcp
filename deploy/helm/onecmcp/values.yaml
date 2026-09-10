@@ -3,7 +3,7 @@ replicaCount: 1
 
 image:
   repository: onecmcp
-  tag: "0.10.0"
+  tag: "0.11.0"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -37,3 +37,10 @@ gateway:
   rateLimitPerMinute: 120
   otelExporterOtlpEndpoint: ""
   mcpHttpPath: /mcp
+  dataDir: /var/lib/onecmcp
+  adminBootstrapToken: ""
+
+# Том для console.json (базы, операторы). emptyDir если persistence.enabled=false.
+persistence:
+  enabled: false
+  size: 1Gi

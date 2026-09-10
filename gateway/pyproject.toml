@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "onecmcp"
-version = "0.10.0"
+version = "0.11.0"
 description = "Протокольный шлюз 1cmcp: MCP и REST к адаптеру 1С"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -17,6 +17,7 @@ dependencies = [
   "uvicorn[standard]>=0.32.0",
   "mcp>=2.2.0",
   "opentelemetry-api>=1.27.0",
+  "pyyaml>=6.0.2",
 ]
 
 [project.optional-dependencies]
@@ -39,7 +40,7 @@ onecmcp = "onecmcp.__main__:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-onecmcp = ["presets/data/*.json"]
+onecmcp = ["presets/data/*.json", "console/static/*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

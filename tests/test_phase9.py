@@ -39,13 +39,13 @@ def _start_query(client: TestClient, token: str = WRITE_DEV_TOKEN) -> str:
 
 
 def test_version_is_0100() -> None:
-    assert __version__ == "0.10.0"
+    assert __version__ == "0.11.0"
     chart = (HELM / "Chart.yaml").read_text(encoding="utf-8")
-    assert 'appVersion: "0.10.0"' in chart
+    assert 'appVersion: "0.11.0"' in chart
     version = (SRC / "Configuration.xml").read_text(encoding="utf-8")
-    assert "<Version>0.10.0</Version>" in version
+    assert "<Version>0.11.0</Version>" in version
     spec = (ROOT / "specs" / "openapi.yaml").read_text(encoding="utf-8")
-    assert "version: 0.10.0" in spec
+    assert "version: 0.11.0" in spec
     assert "operationId: listJobs" in spec
     assert "JobListPage" in spec
 

@@ -28,6 +28,8 @@ python -m onecmcp mock1c --host 127.0.0.1 --port 18080
 python -m onecmcp serve --host 127.0.0.1 --port 8000
 ```
 
+Консоль: [http://127.0.0.1:8000](http://127.0.0.1:8000). Для мока раскомментируйте семя `ONEC_BASE_URL` / `ONEC_TOKEN` в `.env` или задайте базу в админке.
+
 ```bash
 curl -sS http://127.0.0.1:8000/health
 curl -sS http://127.0.0.1:8000/ready
