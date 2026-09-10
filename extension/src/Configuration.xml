@@ -54,7 +54,7 @@
 				<xr:Item xsi:type="xr:MDObjectRef">Role.мкпДоступКоннектора</xr:Item>
 			</DefaultRoles>
 			<Vendor>Первый Бит</Vendor>
-			<Version>0.5.0</Version>
+			<Version>0.6.0</Version>
 			<BriefInformation>
 				<v8:item>
 					<v8:lang>ru</v8:lang>

@@ -12,6 +12,7 @@ from onecmcp import __version__
 from onecmcp.client import OneCClient
 from onecmcp.config import Settings
 from onecmcp.diag import build_gateway_diag
+from onecmcp.presets import list_scenario_catalog, scenario_guide
 
 HOP_BY_HOP = {
     "connection",
@@ -98,6 +99,13 @@ def create_app(
         except Exception as exc:  # noqa: BLE001
             payload = build_gateway_diag(settings, adapter_error=str(exc))
         return JSONResponse(payload)
+
+    @app.get("/guide")
+    async def gateway_guide(request: Request, q: str | None = None) -> dict:
+        settings: Settings = request.app.state.settings
+        if q is None or not str(q).strip():
+            return list_scenario_catalog(settings.onec_preset)
+        return scenario_guide(q, settings.onec_preset)
 
     @app.get("/openapi.yaml")
     async def openapi_yaml() -> FileResponse:

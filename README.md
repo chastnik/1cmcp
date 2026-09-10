@@ -13,6 +13,8 @@
 | **[Пресеты и навыки](docs/skills.md)** | простые вопросы к УТ/КА/ERP/БП: `guide`, словари синонимов, чем «отчёт» отличается от СКД |
 | **[Совместимость](docs/compatibility.md)** | платформа 8.3.20+, файловый и клиент-серверный режимы, версии |
 | [Чек-лист приёмки](docs/acceptance-checklist.md) | ревью |
+| **[Пилот](docs/pilots.md)** | партнёрский инженер: три контура, без ключа продукта |
+| [`docs/connect/`](docs/connect/README.md) | Claude Desktop, Cursor, n8n |
 | [`specs/openapi.yaml`](specs/openapi.yaml) | контракт HTTP API v1 |
 
 Короткая проверка без базы 1С — раздел ниже. Полный контур с Конфигуратором, ролями и токенами — только в [установке](docs/install.md).
@@ -69,7 +71,7 @@ flowchart TB
   subgraph disc["Discovery"]
     H["health"]
     Dg["diag"]
-    G["guide — только MCP"]
+    G["guide — MCP и GET /guide"]
     ML["meta_list"]
     MS["meta_search"]
     MD["meta_describe"]
@@ -109,7 +111,7 @@ flowchart TB
   RB --- POSTRB["POST /v1/session/rollback"]
 ```
 
-`guide` в 1С не ходит. `async: true` на `query`/`report` даёт `202` и тот же `job_get`. `POST /v1/job` с `operation: action` — `501`; действия только через `/v1/action`.
+`guide` в 1С не ходит (`GET /guide` на шлюзе или MCP). `async: true` на `query`/`report` даёт `202` и тот же `job_get`. `POST /v1/job` с `operation: action` — `501`; действия только через `/v1/action`.
 
 ### Пайплайн: вопрос «сколько отгрузок за август»
 
@@ -226,15 +228,15 @@ flowchart LR
 
 ## Статус
 
-Фаза 4 — продуктизация: обработка администрирования, самодиагностика, Docker Compose и Helm. Ключ продукта не нужен. В репозитории:
+Фаза 5 — каталог сценариев и пресеты агентов. Ключ продукта не нужен. В репозитории:
 
-- ADR, регламент clean room, чек-лист приёмки, [совместимость](docs/compatibility.md)
-- OpenAPI 3.1 на весь v1 (версия контракта 0.5.0)
+- ADR, регламент clean room, чек-лист приёмки, [совместимость](docs/compatibility.md), [пилоты](docs/pilots.md)
+- OpenAPI 3.1 на весь v1 (версия контракта 0.6.0)
 - расширение `мкпКоннектор`: Bearer-токен, интроспекция, чтение, `query`/`report`/`job`, запись/`action`/откат, `GET /v1/diag`, обработка `мкпАдминистрированиеКоннектора`
-- шлюз с REST-прокси, `GET /diag`, кэшем метаданных, MCP (включая `diag`) и моком слоя A
-- `docker-compose.yml` с healthcheck и чарт `deploy/helm/onecmcp`
+- шлюз с REST-прокси, `GET /diag`, `GET /guide`, кэшем метаданных, MCP и моком слоя A
+- `docker-compose.yml` с healthcheck, чарт `deploy/helm/onecmcp`, пресеты [connect](docs/connect/README.md)
 
-Критерий Ф4: инженер не из команды разворачивает коннектор по документации за рабочий день. Живая база 1С на CI появится, когда на раннере будет платформа; до этого XML, префикс, UUID и контракт проверяются моком.
+Критерий git Ф5: партнёрский инженер подключает агента по документации и прогоняет каталог `guide`. Живые пилоты на базах клиентов и заявка в реестр ПО — вне репозитория.
 
 ## Быстрый старт (без базы 1С)
 
@@ -266,7 +268,7 @@ curl -s -H "Authorization: Bearer dev-token" \
 
 Мок отвечает на `/v1/health` без токена; чтение — `Authorization: Bearer dev-token`. Запись на стенде — `dev-write-token` (скоупы `read,write` и ACL на демо-объекты). Фикстуры: `Catalog.DemoCounterparties`, `Document.DemoShipments`, отчёт `DemoSales`.
 
-Подключение Claude Desktop: [`docs/claude-desktop.mcp.json`](docs/claude-desktop.mcp.json), пошагово в [установке §6](docs/install.md#61-claude-desktop). Как задавать вопросы агенту — [пользование](docs/usage.md). Схемы слоёв, API и пайплайнов — в разделе [Архитектура](#архитектура) выше.
+Подключение Claude Desktop: [`docs/connect/claude-desktop.mcp.json`](docs/connect/claude-desktop.mcp.json), пошагово в [установке §6](docs/install.md#61-claude-desktop). Как задавать вопросы агенту — [пользование](docs/usage.md). Схемы слоёв, API и пайплайнов — в разделе [Архитектура](#архитектура) выше.
 
 ## Репозиторий
 
@@ -283,6 +285,8 @@ curl -s -H "Authorization: Bearer dev-token" \
 | `gateway/` | Шлюз Python |
 | `.env.example` | Переменные шлюза и MCP |
 | `deploy/helm/onecmcp/` | Helm-чарт шлюза |
+| `docs/connect/` | JSON подключения Claude Desktop, Cursor, n8n |
+| `docs/pilots.md` | Чек-лист пилота |
 | `docs/compatibility.md` | Платформа 8.3.20+, режимы ИБ, версии |
 | `scripts/ci.sh` | Локальный запуск CI: тесты и покрытие ≥ 90% |
 | `План разработки MCP-коннектора 1С.md` | Дорожная карта |

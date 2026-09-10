@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: 1cmcp Adapter API
-  version: 0.5.0
+  version: 0.6.0
   summary: Внутренний контракт слоя A (расширение 1С) и REST-проекция шлюза.
   description: |
     Канонический контракт v1. Слой A публикует его как HTTP-сервис с корневым URL `mcp`.
@@ -30,6 +30,8 @@ tags:
     description: Живость расширения и шлюза (Ф0)
   - name: diag
     description: Самодиагностика публикации и контура (Ф4)
+  - name: guide
+    description: Каталог сценариев шлюза (Ф5)
   - name: meta
     description: Интроспекция и discovery (Ф1)
   - name: data
@@ -68,7 +70,7 @@ paths:
               example:
                 status: ok
                 service: 1cmcp
-                version: 0.5.0
+                version: 0.6.0
                 api: v1
                 time: "2026-09-09T17:00:00Z"
         default:
@@ -94,7 +96,7 @@ paths:
               example:
                 status: ok
                 service: 1cmcp
-                version: 0.5.0
+                version: 0.6.0
                 api: v1
                 time: "2026-09-09T20:00:00Z"
                 product_license: not_required
@@ -109,6 +111,32 @@ paths:
                   - id: http_service
                     ok: true
                     detail: RootURL mcp
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /guide:
+    get:
+      tags: [guide]
+      operationId: getGuide
+      summary: Плейбук сценария или каталог
+      description: |
+        Только шлюз, в 1С не ходит. Без `q` — каталог сценариев. С `q` — шаги
+        `guide` (те же, что MCP). Запись в плейбуке идёт через dry-run.
+      security: []
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Каталог или подобранный сценарий
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
         default:
           $ref: "#/components/responses/Problem"
 
@@ -639,7 +667,7 @@ components:
           const: 1cmcp
         version:
           type: string
-          examples: ["0.5.0"]
+          examples: ["0.6.0"]
         api:
           type: string
           const: v1

@@ -292,7 +292,7 @@ curl -sS "http://1c-web/ut11/hs/mcp/v1/health"
 {
   "status": "ok",
   "service": "1cmcp",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "api": "v1",
   "time": "2026-09-09T18:00:00Z"
 }
@@ -383,7 +383,7 @@ http://127.0.0.1:8000/openapi.yaml
 - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 
-Вставьте сервер из [`docs/claude-desktop.mcp.json`](claude-desktop.mcp.json). **Замените** `command` на абсолютный путь к Python из venv (иначе Desktop может взять системный 3.11 и упасть):
+Подключение Claude Desktop: вставьте сервер из [`docs/connect/claude-desktop.mcp.json`](connect/claude-desktop.mcp.json) (копия: [`docs/claude-desktop.mcp.json`](claude-desktop.mcp.json)). **Замените** `command` на абсолютный путь к Python из venv.
 
 ```json
 {
@@ -408,11 +408,11 @@ http://127.0.0.1:8000/openapi.yaml
 
 ### 6.2. Claude Code / Cursor
 
-Тот же JSON в `.mcp.json` проекта или в настройках MCP IDE. Команда — `python -m onecmcp mcp` из окружения, где установлен `onecmcp`.
+Файл [`connect/cursor.mcp.json`](connect/cursor.mcp.json) в `.mcp.json` проекта. Команда — `python -m onecmcp mcp` из окружения, где установлен `onecmcp`.
 
 ### 6.3. n8n, Dify, внутренний сервис без MCP
 
-Они ходят **HTTP на шлюз** (`serve`), не в 1С:
+Они ходят **HTTP на шлюз** (`serve`), не в 1С. Плейбук: `GET http://gateway:8000/guide?q=...`. Workflow: [`connect/n8n-guide.json`](connect/n8n-guide.json).
 
 ```
 GET http://gateway:8000/v1/meta/search?q=контрагент
