@@ -123,9 +123,9 @@ def test_audit_limit_and_created_refs() -> None:
 
 
 def test_gateway_proxies_audit() -> None:
-    gw = _gateway()
-    gw.get("/v1/meta")
-    page = gw.get("/v1/audit").json()
+    with _gateway() as gw:
+        gw.get("/v1/meta")
+        page = gw.get("/v1/audit").json()
     assert page["content_kind"] == "data"
     assert any(row["path"] == "/v1/meta" for row in page["items"])
 
