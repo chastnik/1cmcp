@@ -11,9 +11,9 @@ docker compose up --build
 | Сервис | Порт | Назначение |
 |---|---|---|
 | `mock1c` | 18080 | мок адаптера |
-| `gateway` | 8000 | REST + `/mcp`; ходит в мок с `dev-token` |
+| `gateway` | 8000 | REST, MCP `/mcp`, веб-консоль `/`; семя `dev-token` + `ADMIN_BOOTSTRAP_TOKEN=dev-admin` |
 
-Полная таблица ключей Compose, Dockerfile и Helm — в [справочнике настроек](../reference/settings.md). В поставке у шлюза явно заданы только `ONEC_BASE_URL=http://mock1c:18080` и `ONEC_TOKEN=dev-token`. Healthcheck ждёт мок (`/v1/health`), затем шлюз (`/health`).
+Полная таблица ключей Compose, Dockerfile и Helm — в [справочнике настроек](../reference/settings.md). Healthcheck ждёт мок (`/v1/health`), затем шлюз (`/health`). Консоль: `http://127.0.0.1:8000`, первый вход — `dev-admin`.
 
 ## Helm
 
@@ -22,7 +22,7 @@ docker compose up --build
 ```bash
 helm install 1cmcp deploy/helm/onecmcp \
   --set onec.baseUrl=http://1c.internal/ib/hs/mcp \
-  --set onec.token='<plaintext-токена>'
+  --set gateway.adminBootstrapToken='<токен-первого-входа>'
 ```
 
 Все ключи `values.yaml` описаны в справочнике настроек (включая `replicaCount`, `resources`, `gateway.mcpHttpPath`). Боевой токен не коммитить: он уходит в Secret.

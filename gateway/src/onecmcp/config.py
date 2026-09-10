@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     rate_limit_per_minute: int = 120
     otel_exporter_otlp_endpoint: str = ""
     mcp_http_path: str = "/mcp"
+    gateway_data_dir: str = ""
+    admin_bootstrap_token: str = ""
 
     def tenant_map(self) -> dict[str, str]:
         return parse_tenant_map(
@@ -58,4 +60,6 @@ class Settings(BaseSettings):
 
 
 def load_settings() -> Settings:
-    return Settings()
+    from onecmcp.store import apply_store
+
+    return apply_store(Settings())

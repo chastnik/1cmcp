@@ -6,26 +6,30 @@
 
 Лицензионный ключ продукта **не задаётся**.
 
+С версии **0.11.0** рабочие настройки шлюза живут в **веб-консоли** (`http://шлюз:8000`, вкладка «Администрирование»). В `.env` оставляют только то, без чего процесс не стартует. `ONEC_*` на первом запуске — необязательное семя, пока в консоли нет баз.
+
 ## Переменные окружения шлюза и MCP
 
 Имена совпадают с полями `Settings` (пакет `onecmcp`). Файл `.env` читается из **текущей рабочей директории** процесса.
 
 | Переменная | Поле Settings | Умолчание | Смысл | Как изменить |
 |---|---|---|---|---|
-| `ONEC_BASE_URL` | `onec_base_url` | `http://127.0.0.1:18080` | корень слоя A **без** `/v1`. Мок: хост мока. Живая 1С: `http(s)://{host}/{ib}/hs/mcp` | `.env`, Compose `environment`, Helm `onec.baseUrl`; перезапуск шлюза/MCP |
-| `ONEC_TOKEN` | `onec_token` | пусто | Bearer к слою A (plaintext токена). На моке `dev-token` | секрет; Helm `onec.token` → Secret `onec-token` |
-| `ONEC_TIMEOUT_SECONDS` | `onec_timeout_seconds` | `30` | таймаут HTTP к адаптеру | `.env` / Helm `onec.timeoutSeconds` |
-| `GATEWAY_HOST` | `gateway_host` | `0.0.0.0` | bind REST и `/mcp` у `serve` | `.env` или `serve --host` (флаг важнее). Helm: `gateway.host` → args `--host` |
-| `GATEWAY_PORT` | `gateway_port` | `8000` | порт `serve` и умолчание порта `mcp --transport streamable-http` | `.env` или `--port`. Helm: `gateway.port` → args `--port` и `containerPort`; сверяйте с `service.port` |
-| `TENANT` | `tenant` | `default` | тенант по умолчанию, заголовок `X-Tenant` на слой A | `.env` / Helm `gateway.tenant` |
-| `ONEC_TENANTS` | `onec_tenants` | пусто | карта `id=url` или JSON нескольких ИБ | `.env` / Helm `gateway.tenants`; [тенанты](../admin/tenants.md) |
-| `META_CACHE_TTL_SECONDS` | `meta_cache_ttl_seconds` | `60` | кэш ответов `/v1/meta*` на шлюзе; `0` — не кэшировать | `.env` / Helm `gateway.metaCacheTtlSeconds` |
-| `ONEC_PRESET` | `onec_preset` | `auto` | `auto` \| `ut11` \| `ka2` \| `erp2` \| `bp30` \| `none` | `.env` / Helm `onec.preset`; [пресеты](../skills.md) |
-| `RATE_LIMIT_PER_MINUTE` | `rate_limit_per_minute` | `120` | скользящее окно **60 с**: не больше N запросов с одного ключа; `0` — выключить. Не считаются `/`, `/health`, `/ready` | `.env` / Helm `gateway.rateLimitPerMinute` |
-| `MCP_HTTP_PATH` | `mcp_http_path` | `/mcp` | путь streamable HTTP на процессе `serve` | `.env` / Helm `gateway.mcpHttpPath` / `mcp --path` |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | `otel_exporter_otlp_endpoint` | пусто | экспорт OTLP; нужен extra `otel` | `.env` / Helm `gateway.otelExporterOtlpEndpoint` |
+| `GATEWAY_HOST` | `gateway_host` | `0.0.0.0` | bind REST, консоли и `/mcp` | `.env` или `serve --host`. Helm: `gateway.host` |
+| `GATEWAY_PORT` | `gateway_port` | `8000` | порт `serve` | `.env` или `--port`. Helm: `gateway.port` |
+| `GATEWAY_DATA_DIR` | `gateway_data_dir` | пусто | каталог `console.json` (базы, операторы, настройки) | `.env` / Helm `gateway.dataDir`; том `persistence` |
+| `ADMIN_BOOTSTRAP_TOKEN` | `admin_bootstrap_token` | пусто | токен первого входа в админку консоли | `.env` / Helm `gateway.adminBootstrapToken`. Дальше — оператор в UI |
+| `ONEC_BASE_URL` | `onec_base_url` | `http://127.0.0.1:18080` | корень слоя A **без** `/v1` | **консоль → Базы 1С**. Env — семя первого старта |
+| `ONEC_TOKEN` | `onec_token` | пусто | Bearer к слою A (plaintext). На моке `dev-token` | **консоль → Базы 1С**, не SHA-256 |
+| `ONEC_TIMEOUT_SECONDS` | `onec_timeout_seconds` | `30` | таймаут HTTP к адаптеру | консоль → настройки / карточка базы |
+| `TENANT` | `tenant` | `default` | база по умолчанию, заголовок `X-Tenant` | консоль → база по умолчанию |
+| `ONEC_TENANTS` | `onec_tenants` | пусто | служебная карта `id=url` | консоль → список баз |
+| `META_CACHE_TTL_SECONDS` | `meta_cache_ttl_seconds` | `60` | кэш `/v1/meta*`; `0` — не кэшировать | консоль → настройки |
+| `ONEC_PRESET` | `onec_preset` | `auto` | `auto` \| `ut11` \| `ka2` \| `erp2` \| `bp30` \| `none` | консоль → настройки; [пресеты](../skills.md) |
+| `RATE_LIMIT_PER_MINUTE` | `rate_limit_per_minute` | `120` | окно **60 с**; `0` — выключить. Не считаются `/`, `/health`, `/ready`, `/console` | консоль → настройки |
+| `MCP_HTTP_PATH` | `mcp_http_path` | `/mcp` | путь streamable HTTP | консоль; **нужен перезапуск** |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `otel_exporter_otlp_endpoint` | пусто | экспорт OTLP; extra `otel` | консоль; **нужен перезапуск** |
 
-Ключ rate limit: SHA-256 префикс Bearer (`tok:…`); если токена нет — IP клиента (`ip:…`).
+У каждого поля в консоли есть подсказка «?» при наведении. Ключ rate limit: SHA-256 префикс Bearer (`tok:…`); если токена нет — IP (`ip:…`).
 
 Неизвестные ключи в `.env` игнорируются (`extra=ignore`). `.env` читается из **текущей рабочей директории** процесса шлюза/MCP.
 
@@ -46,13 +50,13 @@
 
 ## Helm `deploy/helm/onecmcp`
 
-Чарт версии приложения совпадает с пакетом (`0.10.0`). Ключа продукта в values нет.
+Чарт версии приложения совпадает с пакетом (`0.11.0`). Ключа продукта в values нет.
 
 | Ключ values.yaml | Куда попадает | Умолчание | Как изменить |
 |---|---|---|---|
 | `replicaCount` | число подов | `1` | `helm upgrade --set replicaCount=2` |
 | `image.repository` | образ | `onecmcp` | свой registry |
-| `image.tag` | тег образа | `0.10.0` | тег сборки |
+| `image.tag` | тег образа | `0.11.0` | тег сборки |
 | `image.pullPolicy` | политика pull | `IfNotPresent` | |
 | `imagePullSecrets` | secrets pull | `[]` | private registry |
 | `nameOverride` | имя чарта | `""` | |
@@ -75,8 +79,12 @@
 | `gateway.rateLimitPerMinute` | `RATE_LIMIT_PER_MINUTE` | `120` | |
 | `gateway.otelExporterOtlpEndpoint` | `OTEL_EXPORTER_OTLP_ENDPOINT` | `""` | |
 | `gateway.mcpHttpPath` | `MCP_HTTP_PATH` | `/mcp` | |
+| `gateway.dataDir` | `GATEWAY_DATA_DIR` | `/var/lib/onecmcp` | том консоли |
+| `gateway.adminBootstrapToken` | Secret `admin-bootstrap-token` | `""` | первый вход в UI |
+| `persistence.enabled` | PVC вместо emptyDir | `false` | прод: `true` |
+| `persistence.size` | размер PVC | `1Gi` | |
 
-Чарт: `Chart.yaml` `version` / `appVersion` = `0.10.0` (совпадает с пакетом `onecmcp`). Probes зашиты в шаблон: liveness `GET /health`, readiness `GET /ready` (не выносятся в values). Secret `onec-token` берётся из `onec.token`.
+Чарт: `Chart.yaml` `version` / `appVersion` = `0.11.0` (совпадает с пакетом `onecmcp`). Probes зашиты в шаблон: liveness `GET /health`, readiness `GET /ready` (не выносятся в values). Secret содержит `onec-token` и `admin-bootstrap-token`.
 
 ## Docker Compose (`docker-compose.yml`)
 
@@ -150,4 +158,4 @@
 | `pip install -e "gateway[dev]"` | pytest, coverage, openapi-spec-validator, pyyaml |
 | `pip install -e "gateway[otel]"` | SDK + OTLP HTTP exporter; без extra спаны no-op даже при заданном endpoint |
 
-Версия пакета: **0.10.0** (`gateway/pyproject.toml`). Ключа продукта нет.
+Версия пакета: **0.11.0** (`gateway/pyproject.toml`). Ключа продукта нет.

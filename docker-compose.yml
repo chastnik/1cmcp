@@ -24,8 +24,12 @@ services:
       dockerfile: gateway/Dockerfile
     command: python -m onecmcp serve --host 0.0.0.0 --port 8000
     environment:
+      GATEWAY_DATA_DIR: /var/lib/onecmcp
+      ADMIN_BOOTSTRAP_TOKEN: dev-admin
       ONEC_BASE_URL: http://mock1c:18080
       ONEC_TOKEN: dev-token
+    volumes:
+      - gateway-data:/var/lib/onecmcp
     ports:
       - "8000:8000"
     depends_on:
@@ -42,3 +46,6 @@ services:
       interval: 5s
       timeout: 3s
       retries: 8
+
+volumes:
+  gateway-data:

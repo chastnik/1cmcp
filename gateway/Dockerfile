@@ -4,6 +4,7 @@ WORKDIR /app
 
 COPY gateway /app/gateway
 COPY specs /app/specs
+COPY docs /app/docs
 
 RUN pip install --no-cache-dir /app/gateway
 

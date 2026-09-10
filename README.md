@@ -233,10 +233,10 @@ flowchart LR
 
 ## Статус
 
-Фаза 9 (0.10.0) — список заданий `GET /v1/job` / MCP `job_list`. Фаза 8 — просмотр сессии перед откатом. Фаза 7 — журнал `GET /v1/audit`. Ключ продукта не нужен.
+Фаза 10 (0.11.0) — веб-консоль шлюза: справочник REST/MCP, инструкции и админка баз. Фаза 9 — список заданий `GET /v1/job`. Ключ продукта не нужен.
 
 - ADR, регламент clean room, чек-лист приёмки, [совместимость](docs/compatibility.md), [пилоты](docs/pilots.md)
-- OpenAPI 3.1 на весь v1 (версия контракта 0.10.0)
+- OpenAPI 3.1 на весь v1 (версия контракта 0.11.0)
 - расширение `мкпКоннектор`: Bearer-токен, интроспекция, чтение, `query`/`report`/`job`, запись/`action`/откат, `GET /v1/diag`, обработка `мкпАдминистрированиеКоннектора`
 - шлюз с REST-прокси, MCP `/mcp`, тенантами, rate limit, `GET /diag`, `GET /guide`, кэшем метаданных и моком слоя A
 - `docker-compose.yml` с healthcheck, чарт `deploy/helm/onecmcp`, пресеты [connect](docs/connect/README.md)
@@ -261,6 +261,8 @@ python -m onecmcp mock1c --port 18080
 ```bash
 python -m onecmcp serve --port 8000
 ```
+
+Откройте консоль: [http://127.0.0.1:8000](http://127.0.0.1:8000) — методы, инструкции, админка.
 
 ```bash
 curl -s http://127.0.0.1:8000/v1/health

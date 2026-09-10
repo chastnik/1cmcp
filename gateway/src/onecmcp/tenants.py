@@ -17,10 +17,12 @@ class AdapterPool:
         self,
         settings: Settings,
         transport: httpx.AsyncBaseTransport | None = None,
+        tokens: dict[str, str] | None = None,
     ) -> None:
         self._settings = settings
         self._transport = transport
         self._urls = settings.tenant_map()
+        self._tokens = tokens or {}
         self._clients: dict[str, OneCClient] = {}
 
     def resolve(self, tenant: str | None) -> str:
@@ -34,8 +36,9 @@ class AdapterPool:
         stored = self._clients.get(key)
         if stored is not None:
             return stored
+        token = self._tokens.get(key) or self._settings.onec_token
         settings = self._settings.model_copy(
-            update={"tenant": key, "onec_base_url": self._urls[key]}
+            update={"tenant": key, "onec_base_url": self._urls[key], "onec_token": token}
         )
         created = OneCClient(settings, transport=self._transport)
         self._clients[key] = created

@@ -36,6 +36,7 @@ def test_openapi_covers_v1_surface() -> None:
         "/v1/diag",
         "/v1/audit",
         "/guide",
+        "/console",
         "/diag",
         "/mcp",
         "/t/{tenant}/v1/{path}",

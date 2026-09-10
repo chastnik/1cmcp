@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: 1cmcp Adapter API
-  version: 0.10.0
+  version: 0.11.0
   summary: Внутренний контракт слоя A (расширение 1С) и REST-проекция шлюза.
   description: |
     Канонический контракт v1. Слой A публикует его как HTTP-сервис с корневым URL `mcp`.
@@ -11,6 +11,7 @@ info:
     Ф4 добавляет самодиагностику `GET /v1/diag`. Ф7 — журнал `GET /v1/audit`.
     Ф8 — просмотр сессии `GET /v1/session/{session_id}` перед откатом.
     Ф9 — список фоновых заданий `GET /v1/job` (без тела `result`).
+    Ф10 — веб-консоль `/` и `/console`: справочник REST/MCP, инструкции, админка баз и операторов.
     Лицензионный ключ продукта 1cmcp не требуется (`product_license: not_required`).
     OAuth шлюза отложен. Неизвестный путь и `POST /v1/job` с `operation: action`
     отвечают `501`. Форму уже описанных ресурсов без новой мажорной версии менять нельзя.
@@ -53,6 +54,8 @@ tags:
     description: Просмотр и откат сессии агента (Ф3, Ф8)
   - name: audit
     description: Журнал вызовов текущего клиента (Ф7)
+  - name: console
+    description: Веб-консоль шлюза — справочник и админка (Ф10)
 
 security:
   - bearerAuth: []
@@ -77,7 +80,7 @@ paths:
               example:
                 status: ok
                 service: 1cmcp
-                version: 0.10.0
+                version: 0.11.0
                 api: v1
                 time: "2026-09-09T17:00:00Z"
         default:
@@ -103,7 +106,7 @@ paths:
               example:
                 status: ok
                 service: 1cmcp
-                version: 0.10.0
+                version: 0.11.0
                 api: v1
                 time: "2026-09-09T20:00:00Z"
                 product_license: not_required
@@ -190,6 +193,21 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+        default:
+          $ref: "#/components/responses/Problem"
+
+  /console:
+    get:
+      tags: [console]
+      operationId: getConsole
+      summary: Веб-консоль шлюза
+      description: |
+        HTML-консоль слоя B. Справочник REST и MCP, инструкции из `docs/`,
+        админка баз и операторов. JSON-каталог: `GET /console/api/catalog`.
+      security: []
+      responses:
+        "200":
+          description: HTML-страница консоли
         default:
           $ref: "#/components/responses/Problem"
 
@@ -862,7 +880,7 @@ components:
           const: 1cmcp
         version:
           type: string
-          examples: ["0.10.0"]
+          examples: ["0.11.0"]
         api:
           type: string
           const: v1

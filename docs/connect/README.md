@@ -13,4 +13,4 @@
 
 Dify, GigaChat, YandexGPT, PIX Operator и любой HTTP-клиент: `GET {{gateway}}/guide?q=...` и OpenAPI `GET {{gateway}}/openapi.yaml`. Отдельный MCP-пресет им не нужен.
 
-Подставьте абсолютный путь к Python из venv и боевые `ONEC_BASE_URL` / `ONEC_TOKEN` / `ONEC_PRESET`.
+Подставьте абсолютный путь к Python из venv. URL и токен базы задайте в веб-консоли шлюза (`GATEWAY_DATA_DIR` общий с `serve`). Семя `ONEC_BASE_URL` / `ONEC_TOKEN` в env — только для первого старта.

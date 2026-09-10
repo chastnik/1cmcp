@@ -37,11 +37,11 @@ def _gateway() -> TestClient:
 
 
 def test_version_is_080() -> None:
-    assert __version__ == "0.10.0"
+    assert __version__ == "0.11.0"
     chart = (HELM / "Chart.yaml").read_text(encoding="utf-8")
-    assert 'appVersion: "0.10.0"' in chart
+    assert 'appVersion: "0.11.0"' in chart
     version = (SRC / "Configuration.xml").read_text(encoding="utf-8")
-    assert "<Version>0.10.0</Version>" in version
+    assert "<Version>0.11.0</Version>" in version
 
 
 def test_audit_requires_read_scope() -> None:

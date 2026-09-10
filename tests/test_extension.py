@@ -218,7 +218,7 @@ def test_uuids_are_unique() -> None:
 def test_configuration_version_and_phase4_rights() -> None:
     tree = ET.parse(SRC / "Configuration.xml")
     props = tree.find(f"{MD}Configuration/{MD}Properties")
-    assert props.findtext(f"{MD}Version") == "0.10.0"
+    assert props.findtext(f"{MD}Version") == "0.11.0"
     rights = (SRC / "Roles" / "мкпДоступКоннектора" / "Ext" / "Rights.xml").read_text(
         encoding="utf-8"
     )

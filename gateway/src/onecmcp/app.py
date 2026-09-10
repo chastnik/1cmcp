@@ -10,10 +10,12 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 
 from onecmcp import __version__
 from onecmcp.config import Settings
+from onecmcp.console import mount_console
 from onecmcp.diag import build_gateway_diag
 from onecmcp.limits import RateLimiter, request_limit_key
 from onecmcp.mcp_server import create_mcp
 from onecmcp.presets import list_scenario_catalog, scenario_guide
+from onecmcp.store import apply_store, read_store, tenant_token_map
 from onecmcp.tenants import AdapterPool, UnknownTenant
 from onecmcp.tracing import configure_tracing, http_span
 
@@ -31,6 +33,11 @@ HOP_BY_HOP = {
 }
 
 PROBE_PATHS = {"/health", "/ready"}
+
+
+def _skip_rate_limit(path: str) -> bool:
+    cleaned = path.rstrip("/") or "/"
+    return cleaned in PROBE_PATHS or cleaned == "/" or path.startswith("/console")
 
 
 def _openapi_path() -> Path:
@@ -70,7 +77,7 @@ def create_app(
     *,
     adapter_transport: httpx.AsyncBaseTransport | None = None,
 ) -> FastAPI:
-    settings = settings or Settings()
+    settings = apply_store(settings or Settings())
     configure_tracing(settings)
     limiter = RateLimiter(settings.rate_limit_per_minute)
     mcp = create_mcp(settings)
@@ -78,10 +85,15 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        pool = AdapterPool(settings, transport=adapter_transport)
+        live: Settings = app.state.settings
+        tokens = tenant_token_map(
+            read_store(live.gateway_data_dir).get("bases") or [],
+            live.onec_token,
+        )
+        pool = AdapterPool(live, transport=adapter_transport, tokens=tokens)
         app.state.adapters = pool
-        app.state.onec = pool.client(settings.tenant)
-        app.state.settings = settings
+        app.state.onec = pool.client(live.tenant)
+        app.state.limiter = limiter
         try:
             async with mcp_http.router.lifespan_context(mcp_http):
                 yield
@@ -94,13 +106,15 @@ def create_app(
         lifespan=lifespan,
         description="Слой B: REST-проекция v1, MCP streamable HTTP на /mcp, лимиты и тенанты.",
     )
+    app.state.settings = settings
+    app.state.limiter = limiter
 
     @app.middleware("http")
     async def observe_and_limit(request: Request, call_next):  # type: ignore[no-untyped-def]
-        tenant = request.headers.get("x-tenant") or settings.tenant
+        tenant = request.headers.get("x-tenant") or getattr(request.app.state, "settings", settings).tenant
         path = request.url.path
         with http_span(request.method, path, tenant):
-            if path.rstrip("/") not in PROBE_PATHS and path != "/":
+            if not _skip_rate_limit(path):
                 allowed, retry_after = limiter.allow(request_limit_key(request))
                 if not allowed:
                     return _problem(
@@ -120,7 +134,7 @@ def create_app(
     async def ready(request: Request) -> JSONResponse:
         pool: AdapterPool = request.app.state.adapters
         try:
-            payload = await pool.client(settings.tenant).health()
+            payload = await pool.client(request.app.state.settings.tenant).health()
         except Exception as exc:  # noqa: BLE001
             return _problem(503, "adapter_unavailable", "Adapter unavailable", str(exc))
         return JSONResponse({"status": "ok", "adapter": payload})
@@ -129,17 +143,20 @@ def create_app(
     async def gateway_diag(request: Request) -> JSONResponse:
         pool: AdapterPool = request.app.state.adapters
         try:
-            adapter = await pool.client(settings.tenant).diag()
-            payload = build_gateway_diag(settings, adapter=adapter)
+            adapter = await pool.client(request.app.state.settings.tenant).diag()
+            payload = build_gateway_diag(request.app.state.settings, adapter=adapter)
         except Exception as exc:  # noqa: BLE001
-            payload = build_gateway_diag(settings, adapter_error=str(exc))
+            payload = build_gateway_diag(request.app.state.settings, adapter_error=str(exc))
         return JSONResponse(payload)
+
+    mount_console(app, settings)
 
     @app.get("/guide")
     async def gateway_guide(request: Request, q: str | None = None) -> dict:
+        live: Settings = request.app.state.settings
         if q is None or not str(q).strip():
-            return list_scenario_catalog(settings.onec_preset)
-        return scenario_guide(q, settings.onec_preset)
+            return list_scenario_catalog(live.onec_preset)
+        return scenario_guide(q, live.onec_preset)
 
     @app.get("/openapi.yaml")
     async def openapi_yaml() -> FileResponse:

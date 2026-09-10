@@ -60,6 +60,16 @@ spec:
               value: {{ .Values.gateway.otelExporterOtlpEndpoint | quote }}
             - name: MCP_HTTP_PATH
               value: {{ .Values.gateway.mcpHttpPath | quote }}
+            - name: GATEWAY_DATA_DIR
+              value: {{ .Values.gateway.dataDir | quote }}
+            - name: ADMIN_BOOTSTRAP_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "onecmcp.fullname" . }}
+                  key: admin-bootstrap-token
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.gateway.dataDir | quote }}
           livenessProbe:
             httpGet:
               path: /health
@@ -70,6 +80,14 @@ spec:
               port: http
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "onecmcp.fullname" . }}-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
