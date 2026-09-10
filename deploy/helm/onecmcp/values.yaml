@@ -36,3 +36,4 @@ gateway:
   metaCacheTtlSeconds: 60
   rateLimitPerMinute: 120
   otelExporterOtlpEndpoint: ""
+  mcpHttpPath: /mcp

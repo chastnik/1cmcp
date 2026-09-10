@@ -8,7 +8,7 @@
 
 Цена ошибки в формате ссылки, даты, табличной части и ошибки растёт после первого клиента. Черновик OpenAPI пишется до продуктовой реализации чтения и записи.
 
-Каноническая спецификация: [`specs/openapi.yaml`](../../specs/openapi.yaml).
+Каноническая спецификация: [`specs/openapi.yaml`](https://github.com/chastnik/1cmcp/blob/cursor/phase6-gateway-http-e909/specs/openapi.yaml).
 
 ## Решение
 

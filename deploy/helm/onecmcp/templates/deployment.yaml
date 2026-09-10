@@ -15,14 +15,26 @@ spec:
       labels:
         {{- include "onecmcp.labels" . | nindent 8 }}
     spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: gateway
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          args: ["python", "-m", "onecmcp", "serve", "--host", "0.0.0.0", "--port", "8000"]
+          args:
+            - python
+            - -m
+            - onecmcp
+            - serve
+            - --host
+            - {{ .Values.gateway.host | quote }}
+            - --port
+            - {{ .Values.gateway.port | quote }}
           ports:
             - name: http
-              containerPort: 8000
+              containerPort: {{ .Values.gateway.port }}
               protocol: TCP
           env:
             - name: ONEC_BASE_URL
@@ -46,6 +58,8 @@ spec:
               value: {{ .Values.gateway.rateLimitPerMinute | quote }}
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: {{ .Values.gateway.otelExporterOtlpEndpoint | quote }}
+            - name: MCP_HTTP_PATH
+              value: {{ .Values.gateway.mcpHttpPath | quote }}
           livenessProbe:
             httpGet:
               path: /health

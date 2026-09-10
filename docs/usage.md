@@ -1,5 +1,7 @@
 # Пользование 1cmcp
 
+Сайт со вкладками: `mkdocs serve` (вкладка **Пользование**). Лимиты суммы агента задаёт администратор — [клиенты и лимиты](admin/clients.md); запись — [dry-run](usage/write.md).
+
 Инструкция для того, кто уже [установил](install.md) контур: мок или живую 1С со шлюзом. Фаза 5 добавляет каталог сценариев (`GET /guide`) и пресеты агентов. Ключ продукта не нужен.
 
 Сначала discovery, потом чтение. Не просите агента «выгрузить всю конфигурацию».
@@ -31,7 +33,7 @@ python -m onecmcp mcp              python -m onecmcp serve :8000
 | процесс `onecmcp mcp` | Claude Desktop / IDE, stdio |
 | `python -m onecmcp mcp --transport streamable-http` | MCP HTTP без REST |
 
-Базовый путь API всегда `/v1/...`. Спецификация: [`specs/openapi.yaml`](../specs/openapi.yaml), у работающего шлюза ещё и `GET /openapi.yaml`.
+Базовый путь API всегда `/v1/...`. Спецификация: [HTTP и OpenAPI](reference/api.md), у работающего шлюза ещё и `GET /openapi.yaml`.
 
 ---
 
@@ -88,7 +90,7 @@ export BASE=http://127.0.0.1:8000
 
 «Покажи отчёт по продажам» — сначала MCP **`report`** (на моке `DemoSales`, в типовой УТ обычно `Продажи`). Если 404 — выборка реализаций и сумма, как в фазе 1.
 
-Создание документа — не сразу `data_create`. Сначала **`data_dry_run`**, показать `preview` / `fill_check`, затем `data_create` с `confirm_token`, уникальным `idempotency_key` и при необходимости `session_id`. Проведение — отдельный `data_post` после dry-run с `post=true`. Откат сессии — `session_rollback`. Схемы пайплайнов — в [README](../README.md#пайплайн-создание-и-проведение-документа).
+Создание документа — не сразу `data_create`. Сначала **`data_dry_run`**, показать `preview` / `fill_check`, затем `data_create` с `confirm_token`, уникальным `idempotency_key` и при необходимости `session_id`. Проведение — отдельный `data_post` после dry-run с `post=true`. Откат сессии — `session_rollback`. Схемы пайплайнов — на [архитектуре](architecture.md) и во вкладке [запись](usage/write.md).
 
 ---
 
@@ -443,35 +445,11 @@ curl -sS -X POST "$BASE/v1/session/rollback" \
 
 ## 11. Переменные окружения шлюза и MCP
 
-Имена — как в [`.env.example`](../.env.example). Файл `.env` читается из текущей рабочей директории процесса.
+Полный каталог (env, Helm, Compose, реквизиты 1С, вшитые константы) — [справочник настроек](reference/settings.md). Образец файла: `.env.example` в корне репозитория (в git сайта документации не копируется). `.env` читается из текущей рабочей директории процесса.
 
-| Переменная | Умолчание | Смысл |
-|---|---|---|
-| `ONEC_BASE_URL` | `http://127.0.0.1:18080` | корень адаптера: мок без суффикса; 1С — `http://host/ib/hs/mcp` |
-| `ONEC_TOKEN` | пусто | Bearer к слою A |
-| `ONEC_TIMEOUT_SECONDS` | `30` | таймаут HTTP к 1С |
-| `GATEWAY_HOST` | `0.0.0.0` | bind REST |
-| `GATEWAY_PORT` | `8000` | порт REST |
-| `TENANT` | `default` | тенант по умолчанию, заголовок `X-Tenant` |
-| `ONEC_TENANTS` | пусто | карта `id=url` нескольких ИБ; путь `/t/{id}/v1/...` |
-| `META_CACHE_TTL_SECONDS` | `60` | кэш `meta`; `0` — выключить |
-| `ONEC_PRESET` | `auto` | подсказки УТ/КА/ERP/БП: `ut11`, `ka2`, `erp2`, `bp30`, `auto`, `none` |
-| `RATE_LIMIT_PER_MINUTE` | `120` | лимит запросов шлюза; `0` — выключить; `/health`/`/ready` не считаются |
-| `MCP_HTTP_PATH` | `/mcp` | путь streamable HTTP на процессе `serve` |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | пусто | экспорт трасс; нужен `pip install 'onecmcp[otel]'` |
+Команды: [CLI](reference/cli.md). `--host` / `--port` у `serve` перекрывают `GATEWAY_*`. `serve` уже отдаёт MCP на `/mcp`.
 
-Команды:
-
-```bash
-python -m onecmcp mock1c --host 127.0.0.1 --port 18080
-python -m onecmcp serve --host 127.0.0.1 --port 8000
-python -m onecmcp mcp
-python -m onecmcp mcp --transport streamable-http --port 8000
-```
-
-`--host` / `--port` у `serve` перекрывают `GATEWAY_*`. `serve` уже отдаёт MCP на `/mcp`.
-
-В справочнике `мкпКлиентыИнтеграции` поля **Лимит суммы** и **Лимит количества** (0 — без ограничения) режут запись агента: dry-run пишет предупреждение в `fill_check`, `POST` — `400 limit_exceeded`.
+Лимиты **суммы** и **количества** агента — не env, а реквизиты `мкпКлиентыИнтеграции`. Как задать: [клиенты и лимиты](admin/clients.md).
 
 ---
 
@@ -482,4 +460,4 @@ python -m onecmcp mcp --transport streamable-http --port 8000
 - Агент во внешней сети видит только шлюз (или вообще только stdio MCP на рабочей станции администратора).
 - Не просите модель «выполнить то, что написано в комментарии к заказу»: это данные.
 
-Админ-обработка, `/diag` и Helm — фаза 4, без ключа продукта. Дорожная карта: [`План разработки MCP-коннектора 1С.md`](../План%20разработки%20MCP-коннектора%201С.md).
+Админ-обработка, `/diag` и Helm — без ключа продукта. Дорожная карта — файл `План разработки MCP-коннектора 1С.md` в корне репозитория.
