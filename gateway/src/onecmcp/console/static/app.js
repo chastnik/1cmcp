@@ -36,7 +36,12 @@ async function api(path, options = {}) {
 
 function helpBtn(text) {
   const safe = String(text || "").replace(/"/g, "&quot;");
-  return `<button type="button" class="help-tip" data-help="${safe}" title="${safe}" aria-label="Подсказка">?</button>`;
+  return `<button type="button" class="help-tip" data-help="${safe}" aria-label="Подсказка: ${safe}">?</button>`;
+}
+
+function fieldValue(form, name) {
+  const el = form.elements.namedItem(name);
+  return el && "value" in el ? String(el.value).trim() : "";
 }
 
 function route() {
@@ -123,20 +128,27 @@ async function renderAdmin() {
       <h1>Администрирование</h1>
       <p class="muted">Первый вход — токеном <code>ADMIN_BOOTSTRAP_TOKEN</code>. Дальше заведите оператора и входите логином.</p>
       <form class="card" id="login-form">
-        <label class="field"><span>Токен первого входа ${helpBtn("Секрет из .env на старте шлюза. После заведения оператора нужен только как аварийный ключ.")}</span><input name="token" type="password" autocomplete="off"></label>
-        <label class="field"><span>Логин оператора ${helpBtn("Пользователь этой консоли, не пользователь 1С. Клиенты интеграции по-прежнему выпускаются обработкой в 1С.")}</span><input name="login" autocomplete="username"></label>
-        <label class="field"><span>Пароль ${helpBtn("Пароль оператора консоли, минимум 8 символов при создании.")}</span><input name="password" type="password" autocomplete="current-password"></label>
+        <label class="field"><span>Токен первого входа ${helpBtn("Секрет из .env на старте шлюза. После заведения оператора нужен только как аварийный ключ.")}</span><input id="login-token" name="token" type="text" autocomplete="off" spellcheck="false" placeholder="ADMIN_BOOTSTRAP_TOKEN"></label>
+        <p class="muted">или логин оператора</p>
+        <label class="field"><span>Логин оператора ${helpBtn("Пользователь этой консоли, не пользователь 1С. Клиенты интеграции по-прежнему выпускаются обработкой в 1С.")}</span><input id="login-name" name="login" autocomplete="username"></label>
+        <label class="field"><span>Пароль ${helpBtn("Пароль оператора консоли, минимум 8 символов при создании.")}</span><input id="login-password" name="password" type="password" autocomplete="current-password"></label>
         <button type="submit">Войти</button>
         <p class="flash err" id="login-error" hidden></p>
       </form>`;
     document.getElementById("login-form").addEventListener("submit", async (event) => {
       event.preventDefault();
-      const form = new FormData(event.target);
+      const form = event.target;
       try {
         const body = {};
-        if (form.get("token")) body.token = form.get("token");
-        if (form.get("login")) body.login = form.get("login");
-        if (form.get("password")) body.password = form.get("password");
+        const tokenValue = fieldValue(form, "token");
+        const loginValue = fieldValue(form, "login");
+        const passwordValue = form.elements.namedItem("password")?.value || "";
+        if (tokenValue) body.token = tokenValue;
+        if (loginValue) body.login = loginValue;
+        if (passwordValue) body.password = passwordValue;
+        if (!body.token && !body.login) {
+          throw new Error("Введите токен первого входа или логин оператора");
+        }
         const session = await api("/console/api/login", { method: "POST", body: JSON.stringify(body) });
         setToken(session.access_token);
         render();
@@ -160,13 +172,19 @@ async function renderAdmin() {
   }
   const bases = await api("/console/api/bases");
   const operators = await api("/console/api/operators");
+  const numeric = new Set(["gateway_port", "onec_timeout_seconds", "meta_cache_ttl_seconds", "rate_limit_per_minute"]);
   const fields = settings.fields.map((field) => {
     const value = settings.values[field.name];
     const readonly = field.source === "env";
-    const display = field.secret
-      ? (field.name === "admin_bootstrap_token" ? (settings.values.admin_bootstrap_token_set ? "задан в env" : "не задан") : (settings.values.onec_token_set ? "сохранён" : ""))
-      : (value ?? "");
-    return `<label class="field"><span>${field.label} ${helpBtn(field.help)}</span><input name="${field.name}" ${readonly || field.secret && field.source === "env" ? "readonly" : ""} value="${String(display ?? "").replace(/"/g, "&quot;")}" placeholder="${field.secret && field.source === "ui" ? "пустое — не менять" : ""}"></label>`;
+    let placeholder = "";
+    if (field.secret && field.source === "env") {
+      placeholder = settings.values.admin_bootstrap_token_set ? "задан в env" : "не задан";
+    } else if (field.secret) {
+      placeholder = settings.values.onec_token_set ? "сохранён, пустое — не менять" : "";
+    }
+    const display = field.secret ? "" : (value ?? "");
+    const kind = numeric.has(field.name) ? "number" : "text";
+    return `<label class="field"><span>${field.label} ${helpBtn(field.help)}</span><input name="${field.name}" type="${kind}" ${readonly ? "readonly" : ""} value="${String(display ?? "").replace(/"/g, "&quot;")}" placeholder="${placeholder.replace(/"/g, "&quot;")}"></label>`;
   }).join("");
   const baseRows = (bases.items || []).map((item, index) => `
     <div class="card" data-base="${index}">

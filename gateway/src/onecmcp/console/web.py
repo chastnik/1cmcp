@@ -218,11 +218,20 @@ def mount_console(app: FastAPI, settings: Settings) -> None:
         store = read_store(current.gateway_data_dir)
         settings_payload = dict(store.get("settings") or {})
         allowed = {item["name"] for item in SETTINGS_FIELDS if item["source"] == "ui"}
+        ints = {"rate_limit_per_minute"}
+        floats = {"onec_timeout_seconds", "meta_cache_ttl_seconds"}
         for key, value in payload.items():
             if key not in allowed:
                 continue
-            if key == "onec_token" and value in {"", None}:
+            if key == "onec_token" and value in {"", None, "сохранён"}:
                 continue
+            try:
+                if key in ints:
+                    value = int(value)
+                elif key in floats:
+                    value = float(value)
+            except (TypeError, ValueError):
+                return _problem(400, "bad_request", "Bad request", f"Поле {key} должно быть числом")
             settings_payload[key] = value
         store["settings"] = settings_payload
         write_store(current.gateway_data_dir, store)

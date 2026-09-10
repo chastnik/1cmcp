@@ -49,6 +49,12 @@ def test_console_static_and_help_markup() -> None:
     assert ".help-tip" in css
     assert "operators" in js
     assert "bases" in js
+    assert 'name="token"' in js
+    assert "type=\"password\"" in js
+    assert 'id="login-token"' in js
+    assert "сохранён, пустое — не менять" in js
+    assert 'value="сохранён"' not in js
+    assert "Введите токен первого входа" in js
 
 
 def test_console_home_and_catalog(tmp_path: Path) -> None:
@@ -140,6 +146,9 @@ def test_admin_persists_bases_and_operators(tmp_path: Path) -> None:
         json={"login": "alice", "password": "secret-pass"},
     )
     assert created.status_code == 201
+    listed_ops = client.get("/console/api/operators", headers=headers)
+    assert listed_ops.status_code == 200
+    assert listed_ops.json()["items"][0]["login"] == "alice"
     login = client.post("/console/api/login", json={"login": "alice", "password": "secret-pass"})
     assert login.status_code == 200
     session = login.json()["access_token"]

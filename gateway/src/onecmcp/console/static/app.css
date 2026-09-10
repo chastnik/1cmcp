@@ -46,12 +46,13 @@ code, .code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monosp
 pre.code { padding: 12px; overflow: auto; border-radius: 8px; }
 .method { font-size: .75rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: var(--code); }
 .help-tip { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin-left: 6px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); color: var(--muted); font-size: 12px; cursor: help; position: relative; }
-.help-tip:hover::after, .help-tip:focus::after {
+.help-tip:hover::after, .help-tip:focus::after, .help-tip:focus-visible::after {
   content: attr(data-help);
-  position: absolute; left: 24px; top: -4px; z-index: 5;
+  position: absolute; left: 24px; top: -4px; z-index: 20;
   width: min(320px, 70vw); padding: 8px 10px; border-radius: 8px;
   background: var(--tip); color: var(--bg); font-size: .8rem; font-weight: 400; line-height: 1.35;
   box-shadow: 0 8px 24px rgba(0,0,0,.2);
+  white-space: normal; text-align: left;
 }
 label.field { display: block; margin: 0 0 12px; }
 label.field span { display: flex; align-items: center; font-weight: 600; margin-bottom: 4px; }
