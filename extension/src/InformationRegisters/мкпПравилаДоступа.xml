@@ -105,7 +105,6 @@
 					<Master>false</Master>
 					<MainFilter>true</MainFilter>
 					<DenyIncompleteValues>false</DenyIncompleteValues>
-					<UseInTotals>true</UseInTotals>
 				</Properties>
 			</Dimension>
 			<Dimension uuid="99f3d9e7-463c-4872-9d0d-42535f28e3d9">
@@ -152,7 +151,6 @@
 					<Master>false</Master>
 					<MainFilter>true</MainFilter>
 					<DenyIncompleteValues>false</DenyIncompleteValues>
-					<UseInTotals>true</UseInTotals>
 				</Properties>
 			</Dimension>
 			<Dimension uuid="4ecc98a6-26ab-488f-a639-32a7403ced8f">
@@ -199,7 +197,6 @@
 					<Master>false</Master>
 					<MainFilter>true</MainFilter>
 					<DenyIncompleteValues>false</DenyIncompleteValues>
-					<UseInTotals>true</UseInTotals>
 				</Properties>
 			</Dimension>
 			<Dimension uuid="4c6d712d-4aac-4b9e-a64d-11839184e00e">
@@ -246,7 +243,6 @@
 					<Master>false</Master>
 					<MainFilter>true</MainFilter>
 					<DenyIncompleteValues>false</DenyIncompleteValues>
-					<UseInTotals>true</UseInTotals>
 				</Properties>
 			</Dimension>
 			<Resource uuid="8e0ddc68-7587-4874-bc22-39d2fea48a8a">

@@ -109,7 +109,6 @@
 					<Master>false</Master>
 					<MainFilter>true</MainFilter>
 					<DenyIncompleteValues>false</DenyIncompleteValues>
-					<UseInTotals>true</UseInTotals>
 				</Properties>
 			</Dimension>
 			<Dimension uuid="5eccd7ae-cf65-4bd4-881b-f3e528c3708d">
@@ -157,7 +156,6 @@
 					<Master>false</Master>
 					<MainFilter>true</MainFilter>
 					<DenyIncompleteValues>false</DenyIncompleteValues>
-					<UseInTotals>true</UseInTotals>
 				</Properties>
 			</Dimension>
 			<Resource uuid="a6310b49-1e38-4d8e-854b-f5fc916e3306">

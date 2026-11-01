@@ -109,7 +109,6 @@
 					<Master>false</Master>
 					<MainFilter>true</MainFilter>
 					<DenyIncompleteValues>false</DenyIncompleteValues>
-					<UseInTotals>true</UseInTotals>
 				</Properties>
 			</Dimension>
 			<Resource uuid="596dd4c6-1f90-48f7-876b-807edd2f49a1">
