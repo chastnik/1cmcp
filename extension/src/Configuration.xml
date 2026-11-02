@@ -73,7 +73,12 @@
 					<v8:content>© Стас Чашин. Разработчик: Стас Чашин, Stas@Chashin.pro</v8:content>
 				</v8:item>
 			</Copyright>
-			<VendorInformationAddress>mailto:Stas@Chashin.pro</VendorInformationAddress>
+			<VendorInformationAddress>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>mailto:Stas@Chashin.pro</v8:content>
+				</v8:item>
+			</VendorInformationAddress>
 			<ConfigurationInformationAddress/>
 		</Properties>
 		<ChildObjects>

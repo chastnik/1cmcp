@@ -45,7 +45,9 @@ def test_configuration_is_addon_with_prefix() -> None:
     copyright_text = ET.tostring(copyright, encoding="unicode")
     assert "Стас Чашин" in copyright_text
     assert "Stas@Chashin.pro" in copyright_text
-    assert props.findtext(f"{MD}VendorInformationAddress") == "mailto:Stas@Chashin.pro"
+    vendor_address = props.find(f"{MD}VendorInformationAddress")
+    assert vendor_address is not None
+    assert "mailto:Stas@Chashin.pro" in ET.tostring(vendor_address, encoding="unicode")
     children = [
         (child.tag.removeprefix(MD), (child.text or "").strip())
         for child in tree.find(f"{MD}Configuration/{MD}ChildObjects")
@@ -223,11 +225,6 @@ def test_configuration_version_and_phase4_rights() -> None:
         encoding="utf-8"
     )
     for needle in (
-        "CommonModule.мкпБезопасность",
-        "CommonModule.мкпЗапросы",
-        "CommonModule.мкпОтчёты",
-        "CommonModule.мкпЗадания",
-        "CommonModule.мкпДействия",
         "Catalog.мкпКлиентыИнтеграции",
         "Catalog.мкпИменованныеЗапросы",
         "Catalog.мкпДействияИнтеграции",
@@ -241,6 +238,10 @@ def test_configuration_version_and_phase4_rights() -> None:
         "DataProcessor.мкпАдминистрированиеКоннектора",
     ):
         assert needle in rights
+    # Общих модулей в дереве прав 1С нет. Пока такая ссылка не разрешается, платформа
+    # ограничивается предупреждением, а вместе с самими модулями Конфигуратор зацикливается
+    # на /LoadConfigFromFiles и выгрузка не загружается ни в одну базу.
+    assert "CommonModule." not in rights
 
 
 def test_phase1_modules_export_expected_entrypoints() -> None:
